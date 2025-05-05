@@ -9,6 +9,12 @@ static UINavigationController *presentedMapController = nil;
 
 @implementation MeridianMaps
 
+RCT_EXPORT_MODULE();
+
++ (NSString *)moduleName {
+  return @"MeridianMaps";
+}
+
 // Required to make TurboModule available on main queue
 + (BOOL)requiresMainQueueSetup { return YES; }
 
