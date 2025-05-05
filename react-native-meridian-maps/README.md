@@ -1,6 +1,6 @@
 # react-native-meridian-maps
 
-meridian maps for react native
+use Meridian Maps in React Native
 
 ## Installation
 

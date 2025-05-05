@@ -1,5 +1,4 @@
-
-#import <MeridianMaps/RNMeridianMapsSpec.h>
+#import <MeridianMapsSpec/MeridianMapsSpec.h>
 
 @interface MeridianMaps : NSObject <NativeMeridianMapsSpec>
 
