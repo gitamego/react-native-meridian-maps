@@ -1,7 +1,6 @@
 {
   "name": "react-native-meridian-maps",
   "version": "0.1.0",
-  "description": "use Meridian Maps in React Native",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -79,7 +78,7 @@
     "prettier": "^3.0.3",
     "react": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-builder-bob": "^0.40.9",
+    "react-native-builder-bob": "^0.40.10",
     "release-it": "^17.10.0",
     "turbo": "^1.10.7",
     "typescript": "^5.2.2"
@@ -154,6 +153,14 @@
     "jsSrcsDir": "src",
     "android": {
       "javaPackageName": "com.meridianmaps"
+    },
+    "ios": {
+      "modulesProvider": {
+        "MeridianMaps": "MeridianMaps"
+      },
+      "componentProvider": {
+        "MeridianMapView": "MeridianMapViewManager"
+      }
     }
   },
   "create-react-native-library": {
