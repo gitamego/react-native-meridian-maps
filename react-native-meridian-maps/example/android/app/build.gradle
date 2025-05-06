@@ -111,6 +111,12 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Add Material Design library for Meridian SDK
+    implementation 'com.google.android.material:material:1.9.0'
+    
+    // Add preference library to fix resource linking error
+    implementation 'androidx.preference:preference:1.2.0'
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

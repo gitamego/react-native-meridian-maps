@@ -1,33 +1,23 @@
 # react-native-meridian-maps
 
-use Meridian Maps in React Native
-
-## Installation
-
-```sh
+# Installation
+```
 npm install react-native-meridian-maps
 ```
 
-## Usage
-
-
+# How to use
 ```js
-import { multiply } from 'react-native-meridian-maps';
+import { MeridianMapView } from 'react-native-meridian-maps';
 
-// ...
+export default function App() {
+  return (
+    <SafeAreaView>
+        <MeridianMapView />
+    </SafeAreaView>
+  );
+}
 
-const result = multiply(3, 7);
 ```
 
+https://github.com/user-attachments/assets/83cb79f4-0718-478a-82f3-940debb7f2f9
 
-## Contributing
-
-See the [contributing guide](CONTRIBUTING.md) to learn how to contribute to the repository and the development workflow.
-
-## License
-
-MIT
-
----
-
-Made with [create-react-native-library](https://github.com/callstack/react-native-builder-bob)

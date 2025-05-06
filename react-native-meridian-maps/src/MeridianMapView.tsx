@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   requireNativeComponent,
   UIManager,
@@ -10,7 +10,9 @@ import {
   Text,
 } from 'react-native';
 
-const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked...`;
+const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure: 
+- You rebuilt the app after installing the package
+- The native module is properly registered`;
 
 type MeridianMapViewProps = {
   style?: ViewStyle;
@@ -31,6 +33,11 @@ const ComponentName = 'MeridianMapView';
 const isComponentAvailable =
   UIManager.getViewManagerConfig(ComponentName) != null;
 
+console.log(`MeridianMapView component available: ${isComponentAvailable ? 'YES' : 'NO'}`);
+if (!isComponentAvailable) {
+  console.error('Available view managers:', Object.keys(UIManager.getViewManagerConfig || {}).join(', '));
+}
+
 const NativeMeridianMapView = isComponentAvailable
   ? requireNativeComponent<MeridianMapViewProps>(ComponentName)
   : () => {
@@ -44,18 +51,33 @@ const NativeMeridianMapView = isComponentAvailable
 
 // Create a wrapper component that ensures the map has a fixed height
 export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
+  const [isMapAvailable, setIsMapAvailable] = useState<boolean | null>(null);
   const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
 
   useEffect(() => {
     // Check availability on mount
     isAvailable()
       .then((available) => {
-        console.log(`MeridianMapView available: ${available}`);
+        console.log(`MeridianMapView SDK available: ${available}`);
+        setIsMapAvailable(available);
       })
       .catch((error) => {
         console.error('Error checking MeridianMapView availability:', error);
+        setIsMapAvailable(false);
       });
   }, []);
+
+  // Show different states based on availability
+  if (isMapAvailable === false) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#ffdddd', justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#990000', textAlign: 'center' }}>
+          Meridian SDK not available{'\n'}
+          Please check your installation and restart the app.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -72,8 +94,9 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
             },
           ]}
         >
-          <Text style={{ color: '#990000' }}>
-            Native MeridianMapView component is not available
+          <Text style={{ color: '#990000', textAlign: 'center' }}>
+            Native MeridianMapView component is not available{'\n'}
+            Check your native code implementation
           </Text>
         </View>
       )}
@@ -84,11 +107,13 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    height: 500, // Fixed height to ensure visibility
-    backgroundColor: '#EEEEEE', // Light gray background to see if container renders
+    flex: 1, // Take all available space instead of fixed height
+    backgroundColor: '#EEEEEE',
   },
   mapView: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });
 
@@ -120,7 +145,9 @@ const MeridianMapNative: MeridianMapModule = Platform.select({
 // Helper methods
 export const isAvailable = async (): Promise<boolean> => {
   try {
+    console.log('Checking if MeridianMap native module is available...');
     const result = await MeridianMapNative.isModuleAvailable();
+    console.log('MeridianMap availability result:', result);
     if (typeof result === 'boolean') {
       return result;
     }
