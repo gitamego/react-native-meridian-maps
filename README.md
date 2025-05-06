@@ -1,4 +1,9 @@
 # react-native-meridian-maps
+
+```
+npm install react-native-meridian-maps
+```
+
 ```js
 import { MeridianMapView } from 'react-native-meridian-maps';
 
