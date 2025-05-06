@@ -1,5 +1,3 @@
-import MeridianMaps from './NativeMeridianMaps';
+import MeridianMapView from './MeridianMapView';
 
-export function multiply(a: number, b: number): number {
-  return MeridianMaps.multiply(a, b);
-}
+export { MeridianMapView };
