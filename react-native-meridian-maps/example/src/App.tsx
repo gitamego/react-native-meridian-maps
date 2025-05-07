@@ -101,17 +101,10 @@ export default function App() {
             settings={{
               appKey: '5809862863224832', // Sample App Key
               mapKey: '5668600916475904', // Sample Map Key
-              showLocationUpdates: true,
+              // showLocationUpdates: true,
             }}
             onMapLoadFail={handleMapError}
           />
-          {/* Debug Information */}
-          {debugInfo ? (
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoTitle}>Module Information:</Text>
-              <Text style={styles.infoText}>{debugInfo}</Text>
-            </View>
-          ) : null}
 
           {/* Map Component - only show when requested and SDK is available */}
           {showMap && isMeridianAvailable && (
