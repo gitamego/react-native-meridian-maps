@@ -71,6 +71,17 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
 }
 
 /**
+ * Interface for fragment to communicate with the container view
+ */
+interface MapFragmentListener {
+    fun onMarkerSelected(marker: com.arubanetworks.meridian.maps.Marker)
+    fun onMapLoadStart()
+    fun onMapLoadFinish()
+    fun onMapLoadFail(error: String)
+    fun onLocationUpdate(location: Any?)
+}
+
+/**
  * Container view that manages a MapViewFragment
  */
 /**
@@ -79,7 +90,7 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
 class MeridianMapContainerView(
     private val themedContext: ThemedReactContext,
     private val reactContext: ReactApplicationContext
-) : FrameLayout(themedContext) {
+) : FrameLayout(themedContext), MapFragmentListener {
 
     companion object {
         private const val TAG = "MeridianMapView"
@@ -92,7 +103,7 @@ class MeridianMapContainerView(
 
     // Fragment reference
     private var mapFragment: MapViewFragment? = null
-    
+
     init {
         Log.d(TAG, "🔄 Initializing MeridianMapContainerView")
         // Set up the container - match parent dimensions
@@ -108,7 +119,7 @@ class MeridianMapContainerView(
             // We will create the map in onAttachedToWindow to ensure proper view lifecycle
         }
     }
-    
+
     /**
      * Called when the view is attached to a window - the ideal time to add the fragment
      */
@@ -117,7 +128,7 @@ class MeridianMapContainerView(
         Log.d(TAG, "✅ View attached to window, creating map")
         createMapFragment()
     }
-    
+
     /**
      * Called when the view is detached - we should clean up the fragment
      */
@@ -126,7 +137,7 @@ class MeridianMapContainerView(
         Log.d(TAG, "❌ View detached from window, removing fragment")
         removeMapFragment()
     }
-    
+
     /**
      * Creates and adds the map fragment to this view
      */
@@ -139,7 +150,7 @@ class MeridianMapContainerView(
             sendEvent("onMapLoadFail", errorEvent)
             return
         }
-        
+
         // Get the current activity
         val activity = reactContext.currentActivity as? FragmentActivity
         if (activity == null) {
@@ -150,27 +161,29 @@ class MeridianMapContainerView(
             sendEvent("onMapLoadFail", errorEvent)
             return
         }
-        
+
         try {
             Log.d(TAG, "Creating map fragment with appId: $appId, mapId: $mapId")
-            
-            // Create the fragment
-            mapFragment = MapViewFragment().apply {
-                arguments = Bundle().apply {
-                    putString("APP_KEY", appId)
-                    putString("MAP_KEY", mapId)
-                    putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
-                }
+
+            // Create and add the map fragment directly
+            val args = Bundle().apply {
+                putString("APP_KEY", appId)
+                putString("MAP_KEY", mapId)
+                putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
             }
-            
+
+            mapFragment = MapViewFragment().apply {
+                arguments = args
+            }
+
             // Add the fragment to this view
             activity.supportFragmentManager.beginTransaction()
                 .replace(id, mapFragment!!, "mapFragment") // Use this view's ID directly
                 .commitNow()
-            
+
             Log.d(TAG, "✅ Map fragment successfully added")
             sendEvent("onMapLoadStart", null)
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create map fragment: ${e.message}", e)
             val errorEvent = Arguments.createMap().apply {
@@ -185,21 +198,21 @@ class MeridianMapContainerView(
      */
     private fun removeMapFragment() {
         if (mapFragment == null) return
-        
+
         val activity = reactContext.currentActivity as? FragmentActivity ?: return
-        
+
         try {
             activity.supportFragmentManager.beginTransaction()
                 .remove(mapFragment!!)
                 .commitNowAllowingStateLoss()
-            
+
             Log.d(TAG, "✅ Map fragment successfully removed")
             mapFragment = null
         } catch (e: Exception) {
             Log.e(TAG, "Error removing map fragment: ${e.message}", e)
         }
     }
-    
+
     /**
      * Public cleanup method called by the view manager when the view is dropped
      */
@@ -214,9 +227,51 @@ class MeridianMapContainerView(
     private fun sendEvent(eventName: String, params: WritableMap?) {
         try {
             themedContext.getJSModule(RCTEventEmitter::class.java)
-                .receiveEvent(id, eventName, params)
+                .receiveEvent(this.id, eventName, params)
         } catch (e: Exception) {
             Log.e(TAG, "Error sending event to React Native: ${e.message}")
         }
+    }
+
+    /**
+     * MapFragmentListener implementation methods
+     */
+    override fun onMarkerSelected(marker: com.arubanetworks.meridian.maps.Marker) {
+        Log.d(TAG, "Marker selected: $marker")
+        try {
+            // Create a map with marker data to send to React Native
+            val params = Arguments.createMap()
+
+            // We can't directly access mapView, so just send basic marker info
+            params.putString("markerId", marker.toString())
+
+            // Send the event to React Native
+            sendEvent("onMarkerSelect", params)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling marker selection: ${e.message}", e)
+        }
+    }
+
+    override fun onMapLoadStart() {
+        Log.d(TAG, "Map load started")
+        sendEvent("onMapLoadStart", null)
+    }
+
+    override fun onMapLoadFinish() {
+        Log.d(TAG, "Map load finished")
+        sendEvent("onMapLoadFinish", null)
+    }
+
+    override fun onMapLoadFail(error: String) {
+        Log.e(TAG, "Map load failed: $error")
+        val params = Arguments.createMap()
+        params.putString("error", error)
+        sendEvent("onMapLoadFail", params)
+    }
+
+    override fun onLocationUpdate(location: Any?) {
+        Log.d(TAG, "Location updated: $location")
+        // Build location data to send to React Native if needed
+        sendEvent("onLocationUpdate", null)
     }
 }
