@@ -44,18 +44,19 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
 
     private MapView mapView;
     private static final String PENDING_DESTINATION_KEY = "meridianSamples.PendingDestinationKey";
+    private static final String TAG = "MapViewFragment";
     private static final int SOURCE_REQUEST_CODE = "meridianSamples.source_request".hashCode() & 0xFF;
     private Directions directions;
     private LocationRequest locationRequest;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d("MapViewFragment", "onCreateView called with container: " + container + ", id: " + (container != null ? container.getId() : "null"));
-        
+
         try {
             // IMPORTANT: We MUST inflate with container as the parent but attachToRoot=false
             // This is the standard pattern for fragments
             View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
-            
+
             // Check if the APP_KEY is available
             if (MeridianApplication.APP_KEY == null) {
                 Log.e("MapViewFragment", "APP_KEY is null. Cannot initialize MapView.");
@@ -64,7 +65,7 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
                 errorText.setTextColor(Color.RED);
                 return errorText;
             }
-            
+
             // Get reference to the MapView from our inflated layout
             mapView = layout.findViewById(R.id.demo_mapview);
             if (mapView == null) {
@@ -74,71 +75,38 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
                 errorText.setTextColor(Color.RED);
                 return errorText;
             }
-            
+
             Log.d("MapViewFragment", "Successfully found MapView: " + mapView);
-            
+
             // Configure the MapView with more visual cues and detailed logging
             try {
                 Log.d(TAG, "Configuring MapView with APP_KEY: " + MeridianApplication.APP_KEY);
                 Log.d(TAG, "Configuring MapView with MAP_KEY: " + MeridianApplication.MAP_KEY);
-                
+
                 // Force MapView size refresh
                 mapView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
                 int width = mapView.getMeasuredWidth();
                 int height = mapView.getMeasuredHeight();
                 Log.d(TAG, "MapView measured dimensions: " + width + "x" + height);
-                
+
                 // Set up the MapView with the MAP_KEY
                 mapView.setAppKey(MeridianApplication.APP_KEY);
                 mapView.setMapKey(MeridianApplication.MAP_KEY);
-                
-                // Set event listeners with detailed logging
-                mapView.setMapEventListener(new com.arubanetworks.meridian.maps.MapView.MapEventListener() {
-                    @Override
-                    public void onMapLoadStart() {
-                        Log.d(TAG, "❗ Map load started");
-                    }
-                    
-                    @Override
-                    public void onMapLoadFinish() {
-                        Log.d(TAG, "✅ Map load finished successfully");
-                    }
-                    
-                    @Override
-                    public void onMapLoadFail(Exception e) {
-                        Log.e(TAG, "❌ Map load failed", e);
-                    }
-                    
-                    @Override
-                    public void onMapTransformChange(Matrix transform) {
-                        Log.d(TAG, "Map transform changed");
-                    }
-                    
-                    @Override
-                    public void onMapRenderFinish() {
-                        Log.d(TAG, "📊 Map render finished");
-                    }
-                    
-                    @Override
-                    public void onMapCameraChange(CameraUpdateEnum camera) {
-                        Log.d(TAG, "📷 Map camera changed: " + camera);
-                    }
-                });
-                
-                // Still register this fragment as listener to maintain functionality
+
+                // Set basic event listeners
+                mapView.setMapEventListener(MapViewFragment.this);
                 mapView.setDirectionsEventListener(MapViewFragment.this);
                 mapView.setMarkerEventListener(MapViewFragment.this);
-                
+
                 // Configure map options for better visibility
                 MapOptions mapOptions = mapView.getOptions();
                 mapOptions.HIDE_MAP_LABEL = false; // Show labels for debugging
-                mapOptions.ALLOW_ZOOM = true;
-                mapOptions.ALLOW_PLACEMARK_SELECTION = true;
+                // Set other options if needed - check MapOptions class for available options
                 mapView.setOptions(mapOptions);
-                
+
                 // Try to force a refresh of the map
                 mapView.invalidate();
-                
+
                 Log.d(TAG, "✨ MapView setup complete - waiting for map to load...");
             } catch (Exception e) {
                 Log.e("MapViewFragment", "Error configuring MapView: " + e.getMessage(), e);
@@ -147,7 +115,7 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
                 errorText.setTextColor(Color.RED);
                 return errorText;
             }
-            
+
             return layout;
         } catch (Exception e) {
             Log.e("MapViewFragment", "Exception in onCreateView: " + e.getMessage(), e);
