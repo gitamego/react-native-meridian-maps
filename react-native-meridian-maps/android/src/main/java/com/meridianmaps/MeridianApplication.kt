@@ -6,56 +6,56 @@ import android.util.Log
 import com.arubanetworks.meridian.Meridian
 import com.arubanetworks.meridian.editor.EditorKey
 
+import org.acra.*
+import org.acra.annotation.*
+import org.acra.ACRA
+import org.acra.config.CoreConfigurationBuilder
+import org.acra.config.MailSenderConfigurationBuilder
+import org.acra.data.StringFormat
+
 /**
  * Application class that holds key constants and initializes the Meridian SDK
  */
 class MeridianApplication : Application() {
-    
+
     companion object {
+        // NOTE: To build the Kotlin Samples App, change the build variant.
+        // To build the default Sample SDK App, use:
+        @JvmField
+        val APP_KEY = EditorKey.forApp("5809862863224832")
+        @JvmField
+        val MAP_KEY = EditorKey.forMap("5668600916475904", APP_KEY)
+
+        // To build your own customized SDK based App, replace APP_KEY and MAP_KEY with your location's App and Map ID values:
+        // val APP_KEY = EditorKey.forApp("APP_KEY")
+        // val MAP_KEY = EditorKey.forMap("MAP_KEY", APP_KEY)
+
+        // To build the default Sample SDK App for EU Servers, use the following:
+        // NOTE: Even if you're geographically located in the EU, you probably won't need to do this.
+        // val APP_KEY = EditorKey.forApp("4856321132199936")
+        // val MAP_KEY = EditorKey.forMap("5752754626625536", APP_KEY)
+
+        const val PLACEMARK_UID = "CASIO_UID" // replace this with a unique id for one of your placemarks.
+        const val TAG_MAC = "" // mac address (without :'s) of one of your tags here
+        const val PROXIMITY_BEACON_MAC = "" // mac address (without :'s) of one of your proximity beacons here
+
         private const val TAG = "MeridianApplication"
-        
+
         // Editor token to authenticate with Meridian services
         // NOTE: This token may be expired. You should replace it with a valid token from your Meridian account.
         const val EDITOR_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
-        
+
         // App ID for Meridian services
         const val APP_ID = "5809862863224832"
-        
+
         // Map ID for the default map
         const val MAP_ID = "5668600916475904"
-        
+
         // EditorKey objects used by the Meridian SDK
-        val APP_KEY: EditorKey by lazy { 
-            try {
-                val key = EditorKey.forApp(APP_ID)
-                Log.d(TAG, "Created APP_KEY successfully")
-                key
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating APP_KEY: ${e.message}", e)
-                EditorKey.forApp(APP_ID) // Fallback - let it throw if it fails
-            }
-        }
-        
-        val MAP_KEY: EditorKey by lazy { 
-            try {
-                val key = EditorKey.forMap(MAP_ID, APP_KEY)
-                Log.d(TAG, "Created MAP_KEY successfully")
-                key
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating MAP_KEY: ${e.message}", e)
-                EditorKey.forMap(MAP_ID, APP_KEY) // Fallback - let it throw if it fails
-            }
-        }
-        
-        // Optional placemark UID if needed
-        const val PLACEMARK_UID = ""
-        
-        // Optional tag MAC if needed
-        const val TAG_MAC = ""
-        
+
         // Track the SDK initialization status
         private var isSdkInitialized = false
-        
+
         /**
          * Attempts to initialize the Meridian SDK if not already initialized
          * @param context Application context
@@ -66,10 +66,10 @@ class MeridianApplication : Application() {
                 Log.d(TAG, "Meridian SDK is already initialized")
                 return true
             }
-            
+
             try {
                 Log.d(TAG, "Attempting to initialize Meridian SDK")
-                
+
                 // Check if SDK is already initialized
                 val existing = Meridian.getShared()
                 if (existing != null) {
@@ -77,10 +77,10 @@ class MeridianApplication : Application() {
                     isSdkInitialized = true
                     return true
                 }
-                
+
                 // Initialize the SDK
                 Meridian.configure(context, EDITOR_TOKEN)
-                
+
                 // Verify initialization
                 val shared = Meridian.getShared()
                 if (shared != null) {
@@ -98,7 +98,7 @@ class MeridianApplication : Application() {
                 return false
             }
         }
-        
+
         /**
          * Checks if the SDK is initialized
          * @return true if the SDK is initialized, false otherwise
@@ -113,10 +113,10 @@ class MeridianApplication : Application() {
             }
         }
     }
-    
+
     override fun onCreate() {
         super.onCreate()
-        
+
         // Initialize the SDK when the Application is created
         initializeSdk(applicationContext)
     }

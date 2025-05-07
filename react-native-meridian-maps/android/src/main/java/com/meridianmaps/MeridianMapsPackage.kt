@@ -12,11 +12,11 @@ import java.util.ArrayList
 class MeridianMapsPackage : ReactPackage {
     companion object {
         private const val TAG = "MeridianMapsPackage"
-        
+
         // Track if we've attempted to initialize Meridian SDK
         private var hasAttemptedInitialization = false
     }
-    
+
     init {
         // Let the module handle initialization to avoid initialization issues
         Log.d(TAG, "MeridianMapsPackage created")
@@ -25,7 +25,7 @@ class MeridianMapsPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         // Try to initialize the SDK when native modules are being created
         tryInitializeMeridianSDK(reactContext)
-        
+
         val modules = ArrayList<NativeModule>()
         modules.add(MeridianMapsModule(reactContext))
         return modules
@@ -34,23 +34,23 @@ class MeridianMapsPackage : ReactPackage {
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
         // Try to initialize the SDK when view managers are being created
         tryInitializeMeridianSDK(reactContext)
-        
+
         val viewManagers = ArrayList<ViewManager<*, *>>()
         viewManagers.add(MeridianMapViewManager(reactContext))
         return viewManagers
     }
-    
+
     private fun tryInitializeMeridianSDK(reactContext: ReactApplicationContext) {
         if (hasAttemptedInitialization) {
             return
         }
-        
+
         try {
             Log.d(TAG, "Attempting to initialize Meridian SDK")
             val appContext = reactContext.applicationContext
             Meridian.configure(appContext, MeridianApplication.EDITOR_TOKEN)
             hasAttemptedInitialization = true
-            
+
             // Verify initialization
             val shared = Meridian.getShared()
             if (shared != null) {

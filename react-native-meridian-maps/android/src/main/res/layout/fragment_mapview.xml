@@ -6,8 +6,6 @@
 
     <com.arubanetworks.meridian.maps.MapView
         android:id="@+id/demo_mapview"
-        android:importantForAccessibility="yes"
-        android:contentDescription="@string/mr_map"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 

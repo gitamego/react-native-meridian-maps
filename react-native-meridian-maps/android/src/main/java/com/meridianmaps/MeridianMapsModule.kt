@@ -187,7 +187,7 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                     val intent = Intent(reactContext, MeridianMapTestActivity::class.java)
                     
                     // Set flags to start a new task
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     
                     Log.d(TAG, "Starting MeridianMapTestActivity")
                     

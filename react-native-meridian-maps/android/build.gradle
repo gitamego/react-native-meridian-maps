@@ -98,6 +98,7 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
     implementation 'org.greenrobot:eventbus:3.3.1'
+    implementation 'ch.acra:acra-mail:5.11.3'
 }
 
 react {

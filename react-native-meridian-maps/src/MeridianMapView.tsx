@@ -10,7 +10,10 @@ import {
   Text,
 } from 'react-native';
 
-const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure: 
+// Get the MeridianMaps module for SDK checks
+const MeridianMapsModule = NativeModules.MeridianMaps;
+
+const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure:
 - You rebuilt the app after installing the package
 - The native module is properly registered`;
 
@@ -110,11 +113,11 @@ const styles = StyleSheet.create({
     flex: 1, // Take all available space instead of fixed height
     backgroundColor: '#EEEEEE',
   },
-  mapView: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
+  // mapView: {
+  //   flex: 1,
+  //   width: '100%',
+  //   height: '100%',
+  // },
 });
 
 // Get the native module
@@ -146,12 +149,33 @@ const MeridianMapNative: MeridianMapModule = Platform.select({
 export const isAvailable = async (): Promise<boolean> => {
   try {
     console.log('Checking if MeridianMap native module is available...');
-    const result = await MeridianMapNative.isModuleAvailable();
-    console.log('MeridianMap availability result:', result);
-    if (typeof result === 'boolean') {
-      return result;
+
+    // First check if the component is registered in UIManager
+    const componentAvailable = UIManager.getViewManagerConfig(ComponentName) != null;
+    console.log(`MeridianMapView component available: ${componentAvailable ? 'YES' : 'NO'}`);
+
+    // Then check if the module is available
+    const moduleAvailable = !!MeridianMapsModule && typeof MeridianMapsModule.openMap === 'function';
+    console.log(`MeridianMaps module available: ${moduleAvailable ? 'YES' : 'NO'}`);
+
+    // As a fallback, try the isModuleAvailable method if it exists
+    let sdkAvailable = false;
+    try {
+      if (MeridianMapNative && typeof MeridianMapNative.isModuleAvailable === 'function') {
+        const result = await MeridianMapNative.isModuleAvailable();
+        if (typeof result === 'boolean') {
+          sdkAvailable = result;
+        } else {
+          sdkAvailable = result?.available === true;
+        }
+        console.log(`Meridian SDK available: ${sdkAvailable ? 'YES' : 'NO'}`);
+      }
+    } catch (e) {
+      console.warn('Could not check SDK availability:', e);
     }
-    return result?.available === true;
+
+    // Return true only if both component and module are available
+    return componentAvailable && (moduleAvailable || sdkAvailable);
   } catch (error) {
     console.error('Error checking MeridianMap availability:', error);
     return false;
