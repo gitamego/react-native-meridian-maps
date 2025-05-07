@@ -40,6 +40,9 @@ android {
       java {
         exclude '**/com/meridiansamples/**'
       }
+      java.srcDirs += ['src/main/java']
+      kotlin.srcDirs += ['src/main/java']
+      resources.srcDirs += ['src/main/res']
     }
   }
 
@@ -98,6 +101,8 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
     implementation 'org.greenrobot:eventbus:3.3.1'
+    implementation 'ch.acra:acra-mail:5.11.3'
+
 }
 
 react {

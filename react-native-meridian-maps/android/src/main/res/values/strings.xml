@@ -37,6 +37,7 @@
     <string name="age_format_second" formatted="true" translatable="false">1 second ago</string>
     <string name="add_google_maps_key" translatable="false">ADD_YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
     <string name="demo_image" translatable="false">Demonstration of using Meridian image</string>
+    <string name="mr_map" translatable="false">Meridian Map</string>
 
     <string-array name="section_titles">
         <item>Maps</item>

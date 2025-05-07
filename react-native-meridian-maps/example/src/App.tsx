@@ -65,7 +65,17 @@ export default function App() {
         
         <View style={styles.mapContainer}>
           <Text style={styles.mapLabel}>MapView Component:</Text>
-          <MeridianMapView />
+          <MeridianMapView 
+            appId="5809862863224832" 
+            mapId="5668600916475904" 
+            style={{ 
+              width: '100%', 
+              height: 500, // Make the map much larger for visibility
+              borderWidth: 5,
+              borderColor: 'red',
+              backgroundColor: '#FFDDDD'
+            }}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -120,11 +130,13 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
+    minHeight: 300, // Ensure minimum height
+    borderWidth: 2,
+    borderColor: '#E91E63', // Make border more visible for debugging
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#fff',
-    padding: 10,
+    padding: 0, // Remove padding to maximize map size
+    marginTop: 10,
   },
 });

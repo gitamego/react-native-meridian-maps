@@ -1,111 +1,31 @@
 package com.meridianmaps
 
 import android.content.Context
-import android.graphics.Matrix
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.fragment.app.FragmentActivity
-import androidx.annotation.NonNull
-import androidx.annotation.Nullable
 
 import com.arubanetworks.meridian.Meridian
 import com.arubanetworks.meridian.editor.EditorKey
-import com.arubanetworks.meridian.location.MeridianLocation
-import com.arubanetworks.meridian.location.MeridianOrientation
-import com.arubanetworks.meridian.maps.ClusteredMarker
-import com.arubanetworks.meridian.maps.MapFragment
 import com.arubanetworks.meridian.maps.MapOptions
 import com.arubanetworks.meridian.maps.MapView
-import com.arubanetworks.meridian.maps.Marker
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.WritableMap
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
-import com.facebook.react.uimanager.events.RCTEventEmitter
 
-class MeridianMapViewManager(private val mReactContext: ReactApplicationContext) : 
+/**
+ * React Native View Manager for Meridian Maps
+ */
+class MeridianMapViewManager(private val reactContext: ReactApplicationContext) : 
     SimpleViewManager<MeridianMapView>() {
     
     companion object {
         private const val TAG = "MeridianMapViewManager"
         private const val REACT_CLASS = "MeridianMapView"
-        private const val EDITOR_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
-        private const val APP_ID = "5809862863224832"
-        private const val MAP_ID = "5668600916475904"
-        
-        // Track initialization attempts
-        private var hasAttemptedConfigure = false
-        
-        // Track if Meridian SDK is initialized
-        private var isMeridianInitialized = false
     }
     
-    init {
-        // Initialize the Meridian SDK if needed
-        initializeMeridianSDK()
-    }
-
-    private fun initializeMeridianSDK() {
-        try {
-            if (!hasAttemptedConfigure) {
-                Log.d(TAG, "Initializing Meridian SDK for the first time")
-                
-                // Use application context to ensure lifecycle independence
-                val appContext = mReactContext.applicationContext
-                
-                // Mark that we've attempted configuration
-                hasAttemptedConfigure = true
-                
-                // Configure the SDK first, before trying to use getShared()
-                try {
-                    Log.e(TAG, "WARNING: The EDITOR_TOKEN may be expired. If map doesn't load, contact Meridian support for a new token.")
-                    Log.d(TAG, "Calling Meridian.configure with application context")
-                    Meridian.configure(appContext, EDITOR_TOKEN)
-                    Log.d(TAG, "Meridian.configure completed successfully")
-                    
-                    // Now check if the shared instance is available
-                    try {
-                        val meridian = Meridian.getShared()
-                        if (meridian != null) {
-                            meridian.supportDarkTheme(true)
-                            isMeridianInitialized = true
-                            Log.d(TAG, "Meridian SDK initialized successfully")
-                        } else {
-                            Log.e(TAG, "Meridian.getShared() returned null after configure")
-                            isMeridianInitialized = false
-                        }
-                    } catch (sharedEx: Exception) {
-                        Log.e(TAG, "Error accessing Meridian.getShared() after configure: ${sharedEx.message}", sharedEx)
-                        isMeridianInitialized = false
-                    }
-                } catch (configEx: Exception) {
-                    Log.e(TAG, "Error during Meridian.configure: ${configEx.message}", configEx)
-                    isMeridianInitialized = false
-                }
-            } else {
-                // We've already attempted to configure, just check if it's initialized
-                try {
-                    val meridian = Meridian.getShared()
-                    isMeridianInitialized = (meridian != null)
-                    Log.d(TAG, "Meridian SDK check - initialized: $isMeridianInitialized")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error checking Meridian.getShared(): ${e.message}", e)
-                    isMeridianInitialized = false
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected exception during Meridian initialization: ${e.message}", e)
-            isMeridianInitialized = false
-        }
-    }
-
     override fun getName(): String {
         return REACT_CLASS
     }
@@ -113,66 +33,41 @@ class MeridianMapViewManager(private val mReactContext: ReactApplicationContext)
     override fun createViewInstance(reactContext: ThemedReactContext): MeridianMapView {
         Log.d(TAG, "Creating MeridianMapView instance")
         
-        // Create our MapView
-        val mapView = MeridianMapView(reactContext, isMeridianInitialized)
+        // Initialize the SDK if it hasn't been initialized already
+        val initialized = MeridianApplication.initializeSdk(reactContext.applicationContext)
+        Log.d(TAG, "SDK initialization status: $initialized")
         
-        // Only try to load the map if the SDK is available
-        if (isMeridianInitialized) {
-            try {
-                // Load the default map
-                Log.d(TAG, "Loading default map with ID: $MAP_ID")
-                mapView.loadMap(APP_ID, MAP_ID)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading default map: ${e.message}", e)
-            }
-        } else {
-            Log.e(TAG, "Meridian SDK not initialized - map will not be loaded")
-        }
-        
-        return mapView
+        // Create view
+        return MeridianMapView(reactContext)
     }
 
+    @ReactProp(name = "appId")
+    fun setAppId(view: MeridianMapView, appId: String?) {
+        if (appId != null) {
+            Log.d(TAG, "Setting appId: $appId")
+            view.setAppId(appId)
+        }
+    }
+    
     @ReactProp(name = "mapId")
-    fun setMapId(view: MeridianMapView, mapId: String) {
-        try {
-            view.loadMap(APP_ID, mapId)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting mapId: ${e.message}", e)
+    fun setMapId(view: MeridianMapView, mapId: String?) {
+        if (mapId != null) {
+            Log.d(TAG, "Setting mapId: $mapId")
+            view.setMapId(mapId)
         }
     }
 
     @ReactProp(name = "locationUpdatesEnabled", defaultBoolean = true)
     fun setLocationUpdatesEnabled(view: MeridianMapView, enabled: Boolean) {
-        try {
-            view.setLocationUpdatesEnabled(enabled)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting locationUpdatesEnabled: ${e.message}", e)
-        }
+        Log.d(TAG, "Setting locationUpdatesEnabled: $enabled")
+        view.setLocationUpdatesEnabled(enabled)
     }
 
     override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
         return mapOf(
-            // Map events
             "onMapLoadStart" to mapOf("registrationName" to "onMapLoadStart"),
             "onMapLoadFinish" to mapOf("registrationName" to "onMapLoadFinish"),
-            "onPlacemarksLoadFinish" to mapOf("registrationName" to "onPlacemarksLoadFinish"),
-            "onMapLoadFail" to mapOf("registrationName" to "onMapLoadFail"),
-            "onMapRenderFinish" to mapOf("registrationName" to "onMapRenderFinish"),
-            "onLocationUpdated" to mapOf("registrationName" to "onLocationUpdated"),
-            
-            // Directions events
-            "onDirectionsReroute" to mapOf("registrationName" to "onDirectionsReroute"),
-            "onDirectionsClick" to mapOf("registrationName" to "onDirectionsClick"),
-            "onDirectionsStart" to mapOf("registrationName" to "onDirectionsStart"),
-            "onRouteStepIndexChange" to mapOf("registrationName" to "onRouteStepIndexChange"),
-            "onDirectionsClosed" to mapOf("registrationName" to "onDirectionsClosed"),
-            "onDirectionsError" to mapOf("registrationName" to "onDirectionsError"),
-            "onUseAccessiblePathsChange" to mapOf("registrationName" to "onUseAccessiblePathsChange"),
-            
-            // Marker events
-            "onMarkerSelect" to mapOf("registrationName" to "onMarkerSelect"),
-            "onMarkerDeselect" to mapOf("registrationName" to "onMarkerDeselect"),
-            "onCalloutClick" to mapOf("registrationName" to "onCalloutClick")
+            "onMapLoadFail" to mapOf("registrationName" to "onMapLoadFail")
         )
     }
 
@@ -185,140 +80,167 @@ class MeridianMapViewManager(private val mReactContext: ReactApplicationContext)
 /**
  * Custom Meridian MapView implementation for React Native
  */
-class MeridianMapView(
-    context: Context,
-    private val sdkInitialized: Boolean
-) : FrameLayout(context), MapView.MapEventListener {
+class MeridianMapView(context: Context) : FrameLayout(context) {
     
     companion object {
         private const val TAG = "MeridianMapView"
-        private const val CONTAINER_ID = 12345 // Custom ID for the fragment container
+        private const val DEFAULT_APP_ID = "5809862863224832"
+        private const val DEFAULT_MAP_ID = "5668600916475904"
     }
     
     private var mapView: MapView? = null
-    private var locationUpdatesEnabled = true
-    private var appKey: EditorKey? = null
-    private var mapKey: EditorKey? = null
-    private var eventEmitter: RCTEventEmitter? = null
+    private var currentAppId: String = DEFAULT_APP_ID
+    private var currentMapId: String = DEFAULT_MAP_ID
+    private var locationUpdatesEnabled: Boolean = true
     
     init {
-        // Generate unique ID for this view to be used as fragment container ID
-        id = CONTAINER_ID
+        Log.d(TAG, "Creating MeridianMapView")
+        id = View.generateViewId()
         
-        if (context is ThemedReactContext) {
-            eventEmitter = context.getJSModule(RCTEventEmitter::class.java)
-        }
+        // Set a background color for debugging visibility
+        setBackgroundColor(android.graphics.Color.MAGENTA)
         
-        if (sdkInitialized) {
-            // Create the MapView directly instead of using fragment
-            try {
-                mapView = MapView(context)
-                addView(mapView)
+        // Create MapView directly
+        try {
+            // Create the MapView
+            mapView = MapView(context).apply {
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                 
-                // Set up event listeners
-                mapView?.setMapEventListener(this)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating MapView: ${e.message}", e)
+                // Set map options - get existing options first
+                val options = this.options
+                options.HIDE_MAP_LABEL = false
+                this.options = options
+                
+                // Set map event listener for basic events
+                setMapEventListener(object : MapView.MapEventListener {
+                    override fun onMapLoadStart() {
+                        Log.d(TAG, "Map load started")
+                    }
+                    
+                    override fun onMapLoadFinish() {
+                        Log.d(TAG, "Map load finished")
+                    }
+                    
+                    override fun onMapLoadFail(error: Throwable) {
+                        Log.e(TAG, "Map load failed: ${error.message}")
+                    }
+                    
+                    // Stub implementations for other required methods
+                    override fun onPlacemarksLoadFinish() {}
+                    override fun onMapRenderFinish() {}
+                    override fun onMapTransformChange(transform: android.graphics.Matrix) {}
+                    override fun onLocationUpdated(location: com.arubanetworks.meridian.location.MeridianLocation) {}
+                    override fun onOrientationUpdated(orientation: com.arubanetworks.meridian.location.MeridianOrientation) {}
+                })
             }
-        } else {
-            Log.e(TAG, "SDK not initialized, cannot create MapView")
+            
+            // Add MapView to the container
+            addView(mapView)
+            Log.d(TAG, "Added MapView to container")
+            
+            // Load initial map
+            loadMap()
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating MapView: ${e.message}", e)
         }
     }
     
-    fun loadMap(appId: String, mapId: String) {
-        if (!sdkInitialized) {
-            Log.e(TAG, "Cannot load map - Meridian SDK not initialized")
-            return
-        }
+    /**
+     * Set the App ID from React props
+     */
+    fun setAppId(appId: String) {
+        Log.d(TAG, "setAppId: $appId")
+        currentAppId = appId
+        loadMap()
+    }
+    
+    /**
+     * Set the Map ID from React props
+     */
+    fun setMapId(mapId: String) {
+        Log.d(TAG, "setMapId: $mapId")
+        currentMapId = mapId
+        loadMap()
+    }
+    
+    /**
+     * Enable or disable location updates
+     */
+    fun setLocationUpdatesEnabled(enabled: Boolean) {
+        locationUpdatesEnabled = enabled
+        Log.d(TAG, "Location updates set to: $enabled")
         
         try {
-            // Create app key and map key
-            appKey = EditorKey.forApp(appId)
-            mapKey = appKey?.let { EditorKey.forMap(mapId, it) }
-            
-            mapView?.let { map ->
-                // First set app key
-                appKey?.let { map.setAppKey(it) }
+            if (enabled) {
+                mapView?.startLocationUpdates()
+            } else {
+                mapView?.stopLocationUpdates()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting location updates: ${e.message}")
+        }
+    }
+    
+    /**
+     * Load the map with current app and map IDs
+     */
+    private fun loadMap() {
+        try {
+            mapView?.let { view ->
+                Log.d(TAG, "Loading map with appId=$currentAppId, mapId=$currentMapId")
                 
-                // Configure basic map options
-                val options = map.options
-                options.HIDE_MAP_LABEL = true
+                // Create EditorKey objects for the app and map
+                val appKey = EditorKey.forApp(currentAppId)
+                val mapKey = EditorKey.forMap(currentMapId, appKey)
                 
-                try { 
-                    // Add additional options if available
-                    options.javaClass.getField("LOCATION_ENABLED")?.setBoolean(options, locationUpdatesEnabled) 
-                } catch (e: Exception) {
-                    Log.d(TAG, "LOCATION_ENABLED option not available")
+                // Set the keys on the view
+                view.setAppKey(appKey)
+                view.setMapKey(mapKey)
+                
+                // Start location updates if enabled
+                if (locationUpdatesEnabled) {
+                    try {
+                        view.startLocationUpdates()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error starting location updates: ${e.message}")
+                    }
                 }
                 
-                // Set options back to map
-                map.options = options
-                
-                // Load the map with map key
-                mapKey?.let { map.setMapKey(it) }
+                Log.d(TAG, "Map loaded with keys")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading map: ${e.message}", e)
         }
     }
     
-    fun setLocationUpdatesEnabled(enabled: Boolean) {
-        locationUpdatesEnabled = enabled
-        
-        mapView?.let { map ->
-            try {
-                val options = map.options
-                try { 
-                    options.javaClass.getField("LOCATION_ENABLED")?.setBoolean(options, enabled) 
-                } catch (e: Exception) {
-                    Log.d(TAG, "LOCATION_ENABLED option not available")
-                }
-                map.options = options
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting location updates: ${e.message}", e)
-            }
+    /**
+     * Handle cleanup when the view is dropped
+     */
+    fun cleanup() {
+        Log.d(TAG, "Cleaning up resources")
+        try {
+            mapView?.stopLocationUpdates()
+            mapView?.onDestroy()
+            mapView = null
+            removeAllViews()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup: ${e.message}", e)
         }
     }
     
-    fun cleanup() {
-        mapView?.onDestroy()
-        mapView = null
-        eventEmitter = null
+    /**
+     * Handle view lifecycle events
+     */
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        Log.d(TAG, "onAttachedToWindow")
+        mapView?.onResume()
     }
     
-    // MapEventListener methods
-    override fun onMapLoadStart() {
-        eventEmitter?.receiveEvent(id, "onMapLoadStart", Arguments.createMap())
-    }
-    
-    override fun onMapLoadFinish() {
-        eventEmitter?.receiveEvent(id, "onMapLoadFinish", Arguments.createMap())
-    }
-    
-    override fun onPlacemarksLoadFinish() {
-        eventEmitter?.receiveEvent(id, "onPlacemarksLoadFinish", Arguments.createMap())
-    }
-    
-    override fun onMapLoadFail(error: Throwable) {
-        val params = Arguments.createMap()
-        params.putString("error", error.message)
-        eventEmitter?.receiveEvent(id, "onMapLoadFail", params)
-    }
-    
-    override fun onMapRenderFinish() {
-        eventEmitter?.receiveEvent(id, "onMapRenderFinish", Arguments.createMap())
-    }
-    
-    override fun onMapTransformChange(transform: Matrix) {
-        // Not forwarding this event to React Native as it's noisy
-    }
-    
-    override fun onLocationUpdated(location: MeridianLocation) {
-        // Just send an empty event - we'll add coordinates later when we know the field names
-        eventEmitter?.receiveEvent(id, "onLocationUpdated", Arguments.createMap())
-    }
-    
-    override fun onOrientationUpdated(orientation: MeridianOrientation) {
-        // Not forwarding this event to React Native
+    override fun onDetachedFromWindow() {
+        Log.d(TAG, "onDetachedFromWindow")
+        mapView?.onPause()
+        super.onDetachedFromWindow()
     }
 }

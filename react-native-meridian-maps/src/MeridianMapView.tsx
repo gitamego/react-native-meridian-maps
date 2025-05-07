@@ -10,21 +10,57 @@ import {
   Text,
 } from 'react-native';
 
-const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure: 
+const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure:
 - You rebuilt the app after installing the package
 - The native module is properly registered`;
 
+// Types for location data from the native side
+type MeridianLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  hasAltitude: boolean;
+  altitude?: number;
+};
+
+// Types for marker data from the native side
+type MarkerData = {
+  markerId: string;
+  isClustered?: boolean;
+  markerCount?: number;
+};
+
 type MeridianMapViewProps = {
+  // ID props for map initialization
+  appId?: string;
+  mapId?: string;
   style?: ViewStyle;
   settings?: {
     showLocationUpdates?: boolean;
     appKey?: string;
     mapKey?: string;
   };
+  // Map events
   onMapLoadStart?: () => void;
   onMapLoadFinish?: () => void;
-  onMapLoadFail?: (error: any) => void;
-  onLocationUpdated?: (location: any) => void;
+  onMapLoadFail?: (error: { error: string }) => void;
+  onPlacemarksLoadFinish?: () => void;
+  onMapRenderFinish?: () => void;
+  onLocationUpdated?: (location: MeridianLocation) => void;
+
+  // Directions events
+  onDirectionsReroute?: () => void;
+  onDirectionsClick?: (marker: MarkerData) => void;
+  onDirectionsStart?: () => void;
+  onRouteStepIndexChange?: (data: { index: number }) => void;
+  onDirectionsClosed?: () => void;
+  onDirectionsError?: (error: { error: string }) => void;
+  onUseAccessiblePathsChange?: () => void;
+
+  // Marker events
+  onMarkerSelect?: (marker: MarkerData) => void;
+  onMarkerDeselect?: (marker: MarkerData) => void;
+  onCalloutClick?: (marker: MarkerData) => void;
 };
 
 const ComponentName = 'MeridianMapView';
@@ -52,7 +88,18 @@ const NativeMeridianMapView = isComponentAvailable
 // Create a wrapper component that ensures the map has a fixed height
 export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
   const [isMapAvailable, setIsMapAvailable] = useState<boolean | null>(null);
-  const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
+
+  // Ensure we have substantial dimensions for the map
+  const combinedStyle = StyleSheet.flatten([
+    styles.mapView,
+    props.style || {},
+    {
+      width: '100%' as any, // Use StyleSheet.flatten to properly merge styles
+      height: props.style?.height || 300, // Default height if not provided
+    }
+  ]);
+
+  console.log('MeridianMapView rendering with style:', combinedStyle);
 
   useEffect(() => {
     // Check availability on mount
@@ -65,7 +112,13 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
         console.error('Error checking MeridianMapView availability:', error);
         setIsMapAvailable(false);
       });
-  }, []);
+
+    // Load the app and map IDs if provided
+    if (isComponentAvailable && props.appId && props.mapId) {
+      console.log(`Initializing map with appId: ${props.appId}, mapId: ${props.mapId}`);
+      // The native component will receive these props directly
+    }
+  }, [props.appId, props.mapId]);
 
   // Show different states based on availability
   if (isMapAvailable === false) {
@@ -81,8 +134,15 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
 
   return (
     <View style={styles.container}>
+      <NativeMeridianMapView
+        {...props}
+        style={combinedStyle}
+      />
       {isComponentAvailable ? (
-        <NativeMeridianMapView {...props} style={combinedStyle} />
+        <NativeMeridianMapView
+          {...props}
+          style={combinedStyle}
+        />
       ) : (
         <View
           style={[

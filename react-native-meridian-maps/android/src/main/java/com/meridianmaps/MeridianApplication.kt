@@ -3,119 +3,156 @@ package com.meridianmaps
 import android.app.Application
 import android.content.Context
 import android.util.Log
+
 import com.arubanetworks.meridian.Meridian
 import com.arubanetworks.meridian.editor.EditorKey
 
 /**
- * Application class that holds key constants and initializes the Meridian SDK
+ * Application class for handling Meridian SDK initialization
  */
 class MeridianApplication : Application() {
     
     companion object {
         private const val TAG = "MeridianApplication"
         
-        // Editor token to authenticate with Meridian services
-        // NOTE: This token may be expired. You should replace it with a valid token from your Meridian account.
+        // SDK Constants
         const val EDITOR_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
         
-        // App ID for Meridian services
-        const val APP_ID = "5809862863224832"
+        // Default App ID for the Meridian app
+        // This is the ID of the Aruba Meridian location / app
+        private var APP_ID = "5809862863224832"
         
-        // Map ID for the default map
-        const val MAP_ID = "5668600916475904"
+        // Default Map ID for the Meridian map
+        // This is the ID of the map within the Aruba Meridian location / app
+        private var MAP_ID = "5668600916475904"
         
-        // EditorKey objects used by the Meridian SDK
+        // We'll use the existing setAppId and setMapId methods elsewhere in the file
+        
+        // Cached initialization status
+        @Volatile
+        private var initialized = false
+        private val initLock = Object()
+        
+        // Set up proper key objects using the constants
         val APP_KEY: EditorKey by lazy { 
-            try {
-                val key = EditorKey.forApp(APP_ID)
-                Log.d(TAG, "Created APP_KEY successfully")
-                key
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating APP_KEY: ${e.message}", e)
-                EditorKey.forApp(APP_ID) // Fallback - let it throw if it fails
-            }
+            EditorKey.forApp(APP_ID)
         }
         
         val MAP_KEY: EditorKey by lazy { 
-            try {
-                val key = EditorKey.forMap(MAP_ID, APP_KEY)
-                Log.d(TAG, "Created MAP_KEY successfully")
-                key
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating MAP_KEY: ${e.message}", e)
-                EditorKey.forMap(MAP_ID, APP_KEY) // Fallback - let it throw if it fails
-            }
-        }
-        
-        // Optional placemark UID if needed
-        const val PLACEMARK_UID = ""
-        
-        // Optional tag MAC if needed
-        const val TAG_MAC = ""
-        
-        // Track the SDK initialization status
-        private var isSdkInitialized = false
-        
-        /**
-         * Attempts to initialize the Meridian SDK if not already initialized
-         * @param context Application context
-         * @return true if initialization was successful, false otherwise
-         */
-        fun initializeSdk(context: Context): Boolean {
-            if (isSdkInitialized) {
-                Log.d(TAG, "Meridian SDK is already initialized")
-                return true
-            }
-            
-            try {
-                Log.d(TAG, "Attempting to initialize Meridian SDK")
-                
-                // Check if SDK is already initialized
-                val existing = Meridian.getShared()
-                if (existing != null) {
-                    Log.d(TAG, "Meridian SDK was already initialized previously")
-                    isSdkInitialized = true
-                    return true
-                }
-                
-                // Initialize the SDK
-                Meridian.configure(context, EDITOR_TOKEN)
-                
-                // Verify initialization
-                val shared = Meridian.getShared()
-                if (shared != null) {
-                    Log.d(TAG, "Meridian SDK initialized successfully")
-                    isSdkInitialized = true
-                    return true
-                } else {
-                    Log.e(TAG, "Meridian SDK initialization failed - getShared() returned null")
-                    isSdkInitialized = false
-                    return false
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error initializing Meridian SDK: ${e.message}", e)
-                isSdkInitialized = false
-                return false
-            }
+            EditorKey.forMap(MAP_ID, APP_KEY)
         }
         
         /**
-         * Checks if the SDK is initialized
-         * @return true if the SDK is initialized, false otherwise
+         * Check if the SDK is initialized
+         * @return true if the SDK is already initialized
          */
         fun isSdkInitialized(): Boolean {
             try {
                 val shared = Meridian.getShared()
-                return shared != null
+                return initialized && shared != null
             } catch (e: Exception) {
-                Log.e(TAG, "Error checking if SDK is initialized: ${e.message}", e)
+                Log.e(TAG, "Error checking if SDK is initialized: ${e.message}")
                 return false
             }
+        }
+        
+        /**
+         * Initialize SDK with the provided application context
+         * This method is thread-safe and ensures SDK is only initialized once
+         * @return true if initialization was successful
+         */
+        fun initializeSdk(context: Context): Boolean {
+            // Fast check without locking
+            if (initialized && Meridian.getShared() != null) {
+                Log.d(TAG, "SDK already initialized and ready")
+                return true
+            }
+            
+            // Use lock for the actual initialization to prevent multiple threads from trying to initialize
+            synchronized(initLock) {
+                // Check again after obtaining lock
+                if (initialized && Meridian.getShared() != null) {
+                    Log.d(TAG, "SDK already initialized inside lock")
+                    return true
+                }
+                
+                try {
+                    Log.d(TAG, "Initializing Meridian SDK with token")
+                    // Only call configure if we haven't successfully initialized yet
+                    if (!initialized) {
+                        Meridian.configure(context, EDITOR_TOKEN)
+                    }
+                    
+                    // Verify initialization
+                    val meridian = Meridian.getShared()
+                    if (meridian != null) {
+                        Log.d(TAG, "Meridian SDK initialized successfully")
+                        meridian.supportDarkTheme(true)
+                        initialized = true
+                        return true
+                    } else {
+                        Log.e(TAG, "Meridian.getShared() returned null after configure call")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error initializing Meridian SDK: ${e.message}", e)
+                    // If the error is about multiple configure calls, mark as initialized
+                    if (e.message?.contains("can't call configure more than once") == true) {
+                        Log.d(TAG, "SDK was already configured by another component")
+                        initialized = Meridian.getShared() != null
+                        return initialized
+                    }
+                }
+                
+                return false
+            }
+        }
+        
+        /**
+         * Gets the application key - for Java compatibility
+         */
+        @JvmStatic
+        fun getAppKey(): EditorKey {
+            return APP_KEY
+        }
+        
+        /**
+         * Gets the map key - for Java compatibility
+         */
+        @JvmStatic
+        fun getMapKey(): EditorKey {
+            return EditorKey.forMap(MAP_ID, getAppKey())
+        }
+        
+        // Set the app ID dynamically
+        fun setAppId(appId: String) {
+            if (appId.isNotEmpty()) {
+                Log.d(TAG, "Setting APP_ID to: $appId")
+                APP_ID = appId
+            }
+        }
+        
+        // Set the map ID dynamically
+        fun setMapId(mapId: String) {
+            if (mapId.isNotEmpty()) {
+                Log.d(TAG, "Setting MAP_ID to: $mapId")
+                MAP_ID = mapId
+            }
+        }
+        
+        // Get the current App ID
+        fun getAppId(): String {
+            return APP_ID
+        }
+        
+        // Get the current Map ID
+        fun getMapId(): String {
+            return MAP_ID
         }
     }
     
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "MeridianApplication onCreate()")
         
         // Initialize the SDK when the Application is created
         initializeSdk(applicationContext)
