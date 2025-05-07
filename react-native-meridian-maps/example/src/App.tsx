@@ -8,6 +8,8 @@ import {
   NativeModules,
   Platform,
   ScrollView,
+  UIManager,
+  Alert,
 } from 'react-native';
 import { MeridianMapView } from 'react-native-meridian-maps';
 
@@ -15,219 +17,217 @@ export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
   const [showMap, setShowMap] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [modulesChecked, setModulesChecked] = useState(false);
-  const [isMeridianAvailable, setIsMeridianAvailable] = useState(false);
-
-  // Function to check module availability without using the component
-  const checkModules = () => {
-    try {
-      // Generate debug information about available modules
-      const modules = Object.keys(NativeModules);
-      const meridianModule = NativeModules.MeridianMaps;
-
-      let info = `Available Native Modules:\n${modules.join(', ')}\n\n`;
-      info += `MeridianMaps module: ${meridianModule ? 'FOUND' : 'NOT FOUND'}\n`;
-
-      setIsMeridianAvailable(!!meridianModule);
-
-      if (meridianModule) {
-        const methods = Object.keys(meridianModule);
-        info += `Available methods: ${methods.join(', ')}\n`;
-      }
-
-      // Add platform info
-      info += `\nPlatform: ${Platform.OS} (${Platform.Version})\n`;
-
-      setDebugInfo(info);
-      setModulesChecked(true);
-    } catch (err: any) {
-      setDebugInfo(`Error during module check: ${err.message || String(err)}`);
-      setModulesChecked(true);
-      setIsMeridianAvailable(false);
-    }
-  };
-
-  // Check modules on startup
-  useEffect(() => {
-    checkModules();
-  }, []);
 
   // Handle map errors
   const handleMapError = (event: any) => {
-    console.error('Map error:', event.nativeEvent);
     const errorMsg = event.nativeEvent?.error || 'Unknown map error';
+    console.error('Map error:', errorMsg);
     setMapError(errorMsg);
+    Alert.alert('Map Error', errorMsg);
   };
 
-  // Additional map event handlers can be added here when needed
+  // Check if the module is available with enhanced debugging
+  const checkAvailability = () => {
+    try {
+      // Check native modules
+      const modules = Object.keys(NativeModules);
+      console.log('Available native modules:', modules);
+      
+      // Check for our specific module
+      const hasModule = modules.includes('MeridianMaps');
+      console.log('MeridianMaps module found:', hasModule);
+      
+      // Log all available UIManager configs
+      console.log('Available view managers:', Object.keys(UIManager));
+      
+      // Get detailed info about view managers
+      let viewManagerInfo = [];
+      
+      // Explicitly check for MeridianMapView
+      const hasMapViewManager = UIManager.getViewManagerConfig?.('MeridianMapView') != null;
+      viewManagerInfo.push(`MeridianMapView: ${hasMapViewManager ? 'Yes' : 'No'}`);
+      
+      // Check all view managers containing "Meridian"
+      const meridianManagers = Object.keys(UIManager).filter(key => 
+        key.includes('Meridian') || key.includes('meridian')
+      );
+      viewManagerInfo.push(`Found Meridian managers: ${meridianManagers.length > 0 ? meridianManagers.join(', ') : 'None'}`);
+      
+      // Extra debug for MeridianMapView config
+      let mapViewConfig = 'No config found';
+      try {
+        const config = UIManager.getViewManagerConfig?.('MeridianMapView');
+        if (config) {
+          mapViewConfig = JSON.stringify(config, null, 2);
+          console.log('MeridianMapView config:', config);
+        }
+      } catch (e: any) {
+        mapViewConfig = `Error: ${e.message}`;
+      }
+      
+      // Check if the native module has essential methods
+      let moduleMethodsInfo = 'Module methods not available';
+      if (NativeModules.MeridianMaps) {
+        const methods = Object.keys(NativeModules.MeridianMaps);
+        moduleMethodsInfo = `Available methods: ${methods.join(', ')}`;
+      }
+      
+      const debugText = [
+        `NATIVE MODULES:`,
+        `- All modules: ${modules.join(', ')}`,
+        `- Has MeridianMaps: ${hasModule ? 'Yes' : 'No'}`,
+        `- ${moduleMethodsInfo}`,
+        ``,
+        `VIEW MANAGERS:`,
+        ...viewManagerInfo,
+        ``,
+        `PLATFORM: ${Platform.OS} (${Platform.Version})`,
+      ].join('\n');
+      
+      setDebugInfo(debugText);
+      
+      return hasModule;
+    } catch (err: any) {
+      const errorMsg = `Error: ${err.message || String(err)}`;
+      console.error('Error checking availability:', err);
+      setDebugInfo(errorMsg);
+      return false;
+    }
+  };
 
+  // Check availability on startup
+  useEffect(() => {
+    checkAvailability();
+  }, []);
+
+  // Toggle map visibility
   const toggleMap = () => {
-    if (showMap) {
-      // If we're hiding the map, clear any errors
+    setShowMap(!showMap);
+    if (mapError) {
       setMapError(null);
     }
-    setShowMap(!showMap);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        <View style={styles.contentContainer}>
-          <Text style={styles.title}>Meridian Maps Diagnostics</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Meridian Maps Test</Text>
 
-          {/* Availability Status */}
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>
-              Meridian SDK:{' '}
-              {!modulesChecked
-                ? 'Checking...'
-                : isMeridianAvailable
-                  ? '✅ Available'
-                  : '❌ Not Available'}
-            </Text>
-          </View>
+        {/* Debug Info */}
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>{debugInfo}</Text>
+        </View>
 
-          {/* Module Debug Button */}
-          <Button title="Check Native Modules" onPress={checkModules} />
+        {/* Buttons */}
+        <View style={styles.buttonRow}>
+          <Button title="Check Availability" onPress={checkAvailability} />
+          <Button title={showMap ? 'Hide Map' : 'Show Map'} onPress={toggleMap} />
+        </View>
 
-          {/* Map Toggle Button - only enabled if modules are available */}
-          <Button
-            title={showMap ? 'Hide Map' : 'Show Map'}
-            onPress={toggleMap}
-            disabled={!isMeridianAvailable}
-          />
-          <MeridianMapView
-            style={styles.map}
-            settings={{
-              appKey: '5809862863224832', // Sample App Key
-              mapKey: '5668600916475904', // Sample Map Key
-              // showLocationUpdates: true,
-            }}
-            onMapLoadFail={handleMapError}
-          />
-
-          {/* Map Component - only show when requested and SDK is available */}
-          {showMap && isMeridianAvailable && (
-            <View style={styles.mapSection}>
-              <Text style={styles.infoTitle}>Map View:</Text>
-
+        {/* Map Component */}
+        {showMap && (
+          <View style={styles.mapContainer}>
+            <Text style={styles.mapLabel}>Meridian Map</Text>
+            <View style={styles.mapContent}>
               {mapError ? (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>Error: {mapError}</Text>
-                  <Button title="Retry" onPress={() => setMapError(null)} />
-                </View>
+                <Text style={styles.errorText}>Error: {mapError}</Text>
               ) : (
-                <View style={styles.mapContainer}>
-                  {/* Add a visual border to help debug map container */}
-                  <Text style={styles.mapLabel}>Loading map...</Text>
-                  <MeridianMapView
-                    style={styles.map}
-                    settings={{
-                      appKey: '5809862863224832', // Sample App Key
-                      mapKey: '5668600916475904', // Sample Map Key
-                      showLocationUpdates: true,
-                    }}
-                    onMapLoadFail={handleMapError}
-                  />
-                </View>
+                <>
+                  <Text style={styles.warningText}>If the map doesn't appear below, there's a native module issue</Text>
+                  <View style={styles.mapBorder}>
+                    <MeridianMapView
+                      style={styles.map}
+                      settings={{
+                        appKey: '5809862863224832',
+                        mapKey: '5668600916475904',
+                        showLocationUpdates: true,
+                      }}
+                      onMapLoadFail={handleMapError}
+                    />
+                  </View>
+                </>
               )}
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-  },
-  mapSection: {
-    width: '100%',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  mapLabel: {
-    textAlign: 'center',
-    padding: 5,
-    color: '#666',
-    backgroundColor: '#f0f0f0',
-    width: '100%',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
-  contentContainer: {
-    flex: 1,
-    padding: 20,
-    alignItems: 'center',
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 50,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 20,
+    textAlign: 'center',
+    marginVertical: 16,
     color: '#333',
   },
-  mapContainer: {
-    width: '100%',
-    height: 400, // Make the map taller for better visibility
+  infoBox: {
+    backgroundColor: '#f0f0f0',
+    padding: 12,
     borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 2, // Thicker border to make it more visible
-    borderColor: '#ff0000', // Red border to help debug
-    backgroundColor: '#e0e0e0', // Background color to see container bounds
-  },
-  map: {
-    width: 400,
-    height: 400, // Leave room for the label
-    backgroundColor: '#f5f5f5', // Background color to help see map component
-    borderWidth: 1,
-    borderColor: '#00f', // Blue border to see map component bounds
-  },
-  infoContainer: {
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 8,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#ddd',
-    marginVertical: 10,
-    width: '100%',
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
   },
   infoText: {
     fontSize: 14,
-    marginBottom: 5,
-    color: '#555',
+    color: '#444',
   },
-  errorContainer: {
-    backgroundColor: '#ffeeee',
-    padding: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ff0000',
-    marginVertical: 10,
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  mapContainer: {
     width: '100%',
+    height: 400,
+    borderWidth: 2,
+    borderColor: '#E91E63',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  mapContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapLabel: {
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  mapBorder: {
+    width: '100%',
+    height: 300,
+    borderWidth: 3,
+    borderColor: 'orange',
+    margin: 10,
+  },
+  map: {
+    flex: 1,
+    width: '100%',
+  },
+  warningText: {
+    color: '#FF9800',
+    marginVertical: 5,
+    fontSize: 12,
+    textAlign: 'center',
   },
   errorText: {
-    color: '#990000',
+    color: '#E91E63',
+    padding: 16,
     textAlign: 'center',
-  },
-  statusContainer: {
-    marginBottom: 10,
-    padding: 10,
-    backgroundColor: '#eee',
-    borderRadius: 5,
-    width: '100%',
-  },
-  statusText: {
-    textAlign: 'center',
-    color: '#333',
-  },
+  }
 });

@@ -1,5 +1,6 @@
 package com.meridianmaps
 
+import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
@@ -72,14 +73,16 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
 /**
  * Container view that manages a MapViewFragment
  */
+/**
+ * A simplified container that hosts the Meridian Map view
+ */
 class MeridianMapContainerView(
-    context: ThemedReactContext,
+    private val themedContext: ThemedReactContext,
     private val reactContext: ReactApplicationContext
-) : FrameLayout(context) {
+) : FrameLayout(themedContext) {
 
     companion object {
-        private const val TAG = "MeridianMapContainer"
-        private const val FRAGMENT_TAG = "map_view_fragment"
+        private const val TAG = "MeridianMapView"
     }
 
     // Map configuration
@@ -89,143 +92,131 @@ class MeridianMapContainerView(
 
     // Fragment reference
     private var mapFragment: MapViewFragment? = null
-    private var isFragmentAttached = false
-
+    
     init {
-        // Generate a unique ID for this view
-        id = generateViewId()
+        Log.d(TAG, "🔄 Initializing MeridianMapContainerView")
+        // Set up the container - match parent dimensions
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     }
 
+    /**
+     * Update the map when configuration parameters are set
+     */
     fun updateMapIfReady() {
         if (!appId.isNullOrEmpty() && !mapId.isNullOrEmpty()) {
-            setupMapFragment()
+            Log.d(TAG, "🔄 Configuration ready, will create map when attached to window")
+            // We will create the map in onAttachedToWindow to ensure proper view lifecycle
         }
     }
-
-    private fun setupMapFragment() {
-        if (isFragmentAttached) {
-            Log.d(TAG, "Map fragment already attached, not creating a new one")
-            return
-        }
-
-        val activity = reactContext.currentActivity as? FragmentActivity ?: run {
-            Log.e(TAG, "Cannot get FragmentActivity from context")
-            return
-        }
-
-        // Make sure we have a valid container ID
-        if (id == View.NO_ID) {
-            id = View.generateViewId() // Ensure we have a valid ID
-            Log.d(TAG, "Generated new container view ID: $id")
-        }
-
-        // Create a frame layout that will act as our fragment container
-        val containerLayout = FrameLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            id = this@MeridianMapContainerView.id // Use our container view's ID
-        }
-
-        // Add the container to our view hierarchy first
-        removeAllViews() // Clear any existing views
-        addView(containerLayout)
-
-        Log.d(TAG, "Added container layout with ID: ${containerLayout.id}")
-
-        activity.runOnUiThread {
-            try {
-                // Make sure the view is attached to window before continuing
-                if (!isAttachedToWindow) {
-                    Log.d(TAG, "View not attached to window yet, waiting...")
-                    // Post the fragment transaction for when the view is attached
-                    post {
-                        if (isAttachedToWindow) {
-                            attachFragmentToContainer(activity)
-                        } else {
-                            Log.e(TAG, "View still not attached to window after posting")
-                            val errorData = Arguments.createMap().apply {
-                                putString("error", "View not attached to window")
-                            }
-                            sendEvent("onMapLoadFail", errorData)
-                        }
-                    }
-                } else {
-                    attachFragmentToContainer(activity)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting up map fragment: ${e.message}", e)
-                val errorData = Arguments.createMap().apply {
-                    putString("error", e.message ?: "Unknown error")
-                }
-                sendEvent("onMapLoadFail", errorData)
+    
+    /**
+     * Called when the view is attached to a window - the ideal time to add the fragment
+     */
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        Log.d(TAG, "✅ View attached to window, creating map")
+        createMapFragment()
+    }
+    
+    /**
+     * Called when the view is detached - we should clean up the fragment
+     */
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        Log.d(TAG, "❌ View detached from window, removing fragment")
+        removeMapFragment()
+    }
+    
+    /**
+     * Creates and adds the map fragment to this view
+     */
+    private fun createMapFragment() {
+        if (appId.isNullOrEmpty() || mapId.isNullOrEmpty()) {
+            Log.e(TAG, "Cannot create map: Missing appId or mapId")
+            val errorEvent = Arguments.createMap().apply {
+                putString("error", "Missing app key or map key")
             }
+            sendEvent("onMapLoadFail", errorEvent)
+            return
         }
-    }
-
-    private fun attachFragmentToContainer(activity: FragmentActivity) {
+        
+        // Get the current activity
+        val activity = reactContext.currentActivity as? FragmentActivity
+        if (activity == null) {
+            Log.e(TAG, "Cannot create map: Activity is null")
+            val errorEvent = Arguments.createMap().apply {
+                putString("error", "No valid activity found")
+            }
+            sendEvent("onMapLoadFail", errorEvent)
+            return
+        }
+        
         try {
-            Log.d(TAG, "Attaching fragment to container with ID: $id")
-            // Create new fragment instance
-            mapFragment = MapViewFragment()
-
-            // Configure location updates if needed
-            // Note: We need to ensure this property is accessible in MapViewFragment
-            try {
-                val field = mapFragment?.javaClass?.getDeclaredField("locationUpdatesEnabled")
-                field?.isAccessible = true
-                field?.setBoolean(mapFragment, this.locationUpdatesEnabled)
-            } catch (e: Exception) {
-                Log.e(TAG, "Could not set locationUpdatesEnabled: ${e.message}")
+            Log.d(TAG, "Creating map fragment with appId: $appId, mapId: $mapId")
+            
+            // Create the fragment
+            mapFragment = MapViewFragment().apply {
+                arguments = Bundle().apply {
+                    putString("APP_KEY", appId)
+                    putString("MAP_KEY", mapId)
+                    putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
+                }
             }
-
-            // Check if fragment container exists in view hierarchy
-            if (findViewById<View>(id) == null) {
-                throw IllegalStateException("Container view with ID $id not found in hierarchy")
-            }
-
-            // Add the fragment to this container
-            val transaction = activity.supportFragmentManager.beginTransaction()
-            transaction.add(id, mapFragment!!, FRAGMENT_TAG)
-            transaction.commit()
-
-            isFragmentAttached = true
-            Log.d(TAG, "Map fragment attached successfully")
-
-            // Notify React Native of success
+            
+            // Add the fragment to this view
+            activity.supportFragmentManager.beginTransaction()
+                .replace(id, mapFragment!!, "mapFragment") // Use this view's ID directly
+                .commitNow()
+            
+            Log.d(TAG, "✅ Map fragment successfully added")
             sendEvent("onMapLoadStart", null)
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Error attaching map fragment: ${e.message}", e)
-            val errorData = Arguments.createMap().apply {
-                putString("error", e.message ?: "Unknown error")
+            Log.e(TAG, "Failed to create map fragment: ${e.message}", e)
+            val errorEvent = Arguments.createMap().apply {
+                putString("error", e.message ?: "Unknown error creating map")
             }
-            sendEvent("onMapLoadFail", errorData)
+            sendEvent("onMapLoadFail", errorEvent)
         }
     }
 
-    fun cleanup() {
+    /**
+     * Removes the map fragment
+     */
+    private fun removeMapFragment() {
+        if (mapFragment == null) return
+        
         val activity = reactContext.currentActivity as? FragmentActivity ?: return
-
-        mapFragment?.let { fragment ->
-            try {
-                val transaction = activity.supportFragmentManager.beginTransaction()
-                transaction.remove(fragment)
-                transaction.commit()
-                isFragmentAttached = false
-                Log.d(TAG, "Map fragment removed")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error removing map fragment: ${e.message}", e)
-            }
+        
+        try {
+            activity.supportFragmentManager.beginTransaction()
+                .remove(mapFragment!!)
+                .commitNowAllowingStateLoss()
+            
+            Log.d(TAG, "✅ Map fragment successfully removed")
+            mapFragment = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing map fragment: ${e.message}", e)
         }
-
-        mapFragment = null
+    }
+    
+    /**
+     * Public cleanup method called by the view manager when the view is dropped
+     */
+    fun cleanup() {
+        Log.d(TAG, "Cleanup called - removing map fragment")
+        removeMapFragment()
     }
 
+    /**
+     * Send an event to React Native
+     */
     private fun sendEvent(eventName: String, params: WritableMap?) {
         try {
-            val reactContext = context as ThemedReactContext
-            reactContext.getJSModule(RCTEventEmitter::class.java)
+            themedContext.getJSModule(RCTEventEmitter::class.java)
                 .receiveEvent(id, eventName, params)
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending event to React Native: ${e.message}", e)
+            Log.e(TAG, "Error sending event to React Native: ${e.message}")
         }
     }
 }

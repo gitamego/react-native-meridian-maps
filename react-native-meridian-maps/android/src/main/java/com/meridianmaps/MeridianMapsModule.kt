@@ -43,7 +43,7 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                 // Use application context to ensure lifecycle independence
                 val appContext = reactContext.applicationContext
                 Log.d(TAG, "Using app context: $appContext")
-                
+
                 try {
                     Log.d(TAG, "Calling Meridian.configure()")
                     Meridian.configure(appContext, EDITOR_TOKEN)
@@ -53,7 +53,7 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                     showToast("SDK init error: ${e.message}")
                     return false
                 }
-                
+
                 val isInitialized = Meridian.getShared() != null
                 Log.d(TAG, "SDK initialized: $isInitialized")
                 return isInitialized
@@ -90,13 +90,13 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
             action()
         } else {
             Log.d(TAG, "Not on main thread, posting to main handler")
-            Handler(Looper.getMainLooper()).post { 
+            Handler(Looper.getMainLooper()).post {
                 Log.d(TAG, "Running action on main thread")
-                action() 
+                action()
             }
         }
     }
-    
+
     /**
      * Show a toast message for debugging
      */
@@ -136,23 +136,23 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                     Log.d(TAG, "Creating intent for MeridianMapActivity")
                     // Create intent to open the map activity
                     val intent = Intent(reactContext, MeridianMapActivity::class.java)
-                    
+
                     // Use provided app and map IDs or defaults if null
                     val finalAppId = appId ?: DEFAULT_APP_ID
                     val finalMapId = mapId ?: DEFAULT_MAP_ID
-                    
+
                     // Pass app and map IDs to the activity
                     intent.putExtra("APP_KEY", finalAppId)
                     intent.putExtra("MAP_KEY", finalMapId)
-                    
+
                     // Set flags to start a new task
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    
+
                     Log.d(TAG, "Starting MeridianMapActivity with APP_KEY=$finalAppId, MAP_KEY=$finalMapId")
-                    
+
                     // Start the activity
                     reactContext.startActivity(intent)
-                    
+
                     // Resolve the promise with success
                     Log.d(TAG, "Map activity started, resolving promise")
                     promise.resolve("Map activity started successfully")
@@ -170,7 +170,7 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
             promise.reject("UNEXPECTED_ERROR", errorMsg, e)
         }
     }
-    
+
     /**
      * Open the test activity for diagnosing Meridian SDK issues
      * @param promise Promise to return the result
@@ -185,15 +185,15 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                     Log.d(TAG, "Creating intent for MeridianMapTestActivity")
                     // Create intent to open the test activity
                     val intent = Intent(reactContext, MeridianMapTestActivity::class.java)
-                    
+
                     // Set flags to start a new task
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    
+
                     Log.d(TAG, "Starting MeridianMapTestActivity")
-                    
+
                     // Start the activity
                     reactContext.startActivity(intent)
-                    
+
                     Log.d(TAG, "Test activity started, resolving promise")
                     // Resolve the promise with success
                     promise.resolve("Test activity started successfully")

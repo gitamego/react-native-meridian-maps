@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   requireNativeComponent,
   UIManager,
@@ -8,10 +8,22 @@ import {
   StyleSheet,
   View,
   Text,
+  findNodeHandle,
+  NativeEventEmitter,
 } from 'react-native';
 
 // Get the MeridianMaps module for SDK checks
 const MeridianMapsModule = NativeModules.MeridianMaps;
+
+// Log all available modules and view managers for debugging
+console.log('Available Native Modules:', Object.keys(NativeModules).join(', '));
+
+// Log available view managers
+if (UIManager.getViewManagerConfig) {
+  console.log('Available View Managers:', Object.keys(UIManager.getViewManagerConfig).join(', '));
+} else {
+  console.log('Unable to get view manager config');
+}
 
 const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. Make sure:
 - You rebuilt the app after installing the package
@@ -28,6 +40,9 @@ type MeridianMapViewProps = {
   onMapLoadFinish?: () => void;
   onMapLoadFail?: (error: any) => void;
   onLocationUpdated?: (location: any) => void;
+  onMarkerSelect?: (marker: any) => void;
+  onMarkerDeselect?: (marker: any) => void;
+  onError?: (error: any) => void;
 };
 
 const ComponentName = 'MeridianMapView';
@@ -52,11 +67,82 @@ const NativeMeridianMapView = isComponentAvailable
       );
     };
 
-// Create a wrapper component that ensures the map has a fixed height
+// Create a wrapper component with event handling and proper mounting behavior
 export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
   const [isMapAvailable, setIsMapAvailable] = useState<boolean | null>(null);
+  const [hasError, setHasError] = useState<string | null>(null);
+  const mapRef = useRef<any>(null);
   const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
-
+  
+  // Validate required settings
+  useEffect(() => {
+    if (!props.settings?.appKey) {
+      setHasError('Missing appKey in settings');
+      console.error('MeridianMapView requires an appKey in settings');
+    }
+    
+    if (!props.settings?.mapKey) {
+      setHasError('Missing mapKey in settings');
+      console.error('MeridianMapView requires a mapKey in settings');
+    }
+  }, [props.settings]);
+  
+  // Set up event handlers
+  useEffect(() => {
+    if (!isComponentAvailable || !mapRef.current) return;
+    
+    // Try to create event emitter for this component
+    try {
+      const nodeId = findNodeHandle(mapRef.current);
+      console.log('MeridianMapView node handle ID:', nodeId);
+      
+      // Listen for events from native side
+      const eventEmitter = new NativeEventEmitter(NativeModules.MeridianMaps);
+      
+      // Map event listeners
+      const subscriptions = [
+        eventEmitter.addListener('onMapLoadStart', () => {
+          console.log('Map load started');
+          props.onMapLoadStart?.();
+        }),
+        eventEmitter.addListener('onMapLoadFinish', () => {
+          console.log('Map load finished');
+          props.onMapLoadFinish?.();
+        }),
+        eventEmitter.addListener('onMapLoadFail', (event) => {
+          console.error('Map load failed:', event);
+          props.onMapLoadFail?.(event);
+        }),
+        eventEmitter.addListener('onLocationUpdated', (event) => {
+          console.log('Location updated:', event);
+          props.onLocationUpdated?.(event);
+        }),
+        eventEmitter.addListener('onMarkerSelect', (event) => {
+          console.log('Marker selected:', event);
+          props.onMarkerSelect?.(event);
+        }),
+        eventEmitter.addListener('onMarkerDeselect', (event) => {
+          console.log('Marker deselected:', event);
+          props.onMarkerDeselect?.(event);
+        }),
+        eventEmitter.addListener('onError', (event) => {
+          console.error('Map error:', event);
+          props.onError?.(event);
+        }),
+      ];
+      
+      return () => {
+        // Clean up subscriptions
+        subscriptions.forEach(subscription => subscription.remove());
+      };
+    } catch (e) {
+      console.error('Error setting up event listeners:', e);
+      return () => {}; // Return empty cleanup function to handle all code paths
+    }
+  }, [mapRef.current, isComponentAvailable, props.onMapLoadStart, props.onMapLoadFinish, 
+      props.onMapLoadFail, props.onLocationUpdated, props.onMarkerSelect, props.onMarkerDeselect, props.onError]);  // Fix dependency array
+  
+  // Check SDK availability on mount
   useEffect(() => {
     // Check availability on mount
     isAvailable()
@@ -82,10 +168,33 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
     );
   }
 
+  // Show error if validation failed
+  if (hasError) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#ffeeee', justifyContent: 'center', padding: 20 }]}>
+        <Text style={{ color: '#cc0000', textAlign: 'center', fontWeight: 'bold' }}>
+          Configuration Error
+        </Text>
+        <Text style={{ color: '#cc0000', textAlign: 'center', marginTop: 8 }}>
+          {hasError}
+        </Text>
+      </View>
+    );
+  }
+  
   return (
     <View style={styles.container}>
       {isComponentAvailable ? (
-        <NativeMeridianMapView {...props} style={combinedStyle} />
+        <NativeMeridianMapView 
+          // @ts-ignore - The native component accepts a ref prop
+          ref={mapRef}
+          {...props} 
+          style={combinedStyle} 
+          settings={{
+            showLocationUpdates: true,
+            ...props.settings,
+          }}
+        />
       ) : (
         <View
           style={[
@@ -94,12 +203,15 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
               backgroundColor: '#ffaaaa',
               justifyContent: 'center',
               alignItems: 'center',
+              padding: 20,
             },
           ]}
         >
-          <Text style={{ color: '#990000', textAlign: 'center' }}>
-            Native MeridianMapView component is not available{'\n'}
-            Check your native code implementation
+          <Text style={{ color: '#990000', textAlign: 'center', fontWeight: 'bold' }}>
+            Native MeridianMapView component is not available
+          </Text>
+          <Text style={{ color: '#990000', textAlign: 'center', marginTop: 8 }}>
+            Please check your installation and restart the app.
           </Text>
         </View>
       )}
@@ -111,13 +223,15 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     flex: 1, // Take all available space instead of fixed height
-    backgroundColor: '#EEEEEE',
+    overflow: 'hidden',
   },
-  // mapView: {
-  //   flex: 1,
-  //   width: '100%',
-  //   height: '100%',
-  // },
+  mapView: {
+    flex: 1,
+    height: '100%',
+    width: '100%',
+    backgroundColor: '#f4f4f8', // Light background color for the map
+    overflow: 'hidden',
+  },
 });
 
 // Get the native module
