@@ -6,13 +6,6 @@ import android.util.Log
 import com.arubanetworks.meridian.Meridian
 import com.arubanetworks.meridian.editor.EditorKey
 
-import org.acra.*
-import org.acra.annotation.*
-import org.acra.ACRA
-import org.acra.config.CoreConfigurationBuilder
-import org.acra.config.MailSenderConfigurationBuilder
-import org.acra.data.StringFormat
-
 /**
  * Application class that holds key constants and initializes the Meridian SDK
  */
