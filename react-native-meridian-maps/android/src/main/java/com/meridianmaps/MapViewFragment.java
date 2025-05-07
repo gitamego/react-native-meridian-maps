@@ -1,9 +1,7 @@
 package com.meridianmaps;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.os.Bundle;
@@ -15,7 +13,6 @@ import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 import com.arubanetworks.meridian.editor.EditorKey;
 import com.arubanetworks.meridian.editor.Placemark;
@@ -45,152 +42,64 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
 
     private MapView mapView;
     private static final String PENDING_DESTINATION_KEY = "meridianSamples.PendingDestinationKey";
-    private static final String TAG = "MapViewFragment";
     private static final int SOURCE_REQUEST_CODE = "meridianSamples.source_request".hashCode() & 0xFF;
     private Directions directions;
     private LocationRequest locationRequest;
-    // Store app key and map key from arguments
-    private String appKey = null;
-    private String mapKey = null;
-    private boolean enableLocation = true;
-
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
 
-        // Get arguments from bundle
-        Bundle args = getArguments();
-        if (args != null) {
-            appKey = args.getString("APP_KEY");
-            mapKey = args.getString("MAP_KEY");
-            enableLocation = args.getBoolean("ENABLE_LOCATION", true);
+        mapView = layout.findViewById(R.id.demo_mapview);
 
-            Log.d(TAG, "Received from arguments - APP_KEY: " + appKey + ", MAP_KEY: " + mapKey);
-        } else {
-            Log.e(TAG, "No arguments provided to fragment!");
-        }
-    }
+        // Use the app key and map key defined in the Application class
+        // Important: These are already EditorKey objects, not strings
+        mapView.setAppKey(Application.APP_KEY);
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        Log.d(TAG, "onCreateView called with container: " + container + ", id: " + (container != null ? container.getId() : "null"));
+        // If you want to handle MapView events
+        mapView.setMapEventListener(this);
 
-        try {
-            // IMPORTANT: We MUST inflate with container as the parent but attachToRoot=false
-            // This is the standard pattern for fragments
-            View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
+        // If you want to handle directions events
+        mapView.setDirectionsEventListener(this);
 
-            // Check if the APP_KEY is available from arguments
-            if (appKey == null || appKey.isEmpty()) {
-                Log.e(TAG, "APP_KEY is null or empty. Cannot initialize MapView.");
-                TextView errorText = new TextView(getContext());
-                errorText.setText("Meridian SDK initialization failed: APP_KEY is missing");
-                errorText.setTextColor(Color.RED);
-                return errorText;
-            }
+        // Sample of how to set the direction step colors
+        /*
+        // Use the Default colors
+        int activeColor = ContextCompat.getColor(getContext(), R.color.direction_active);
+        int inactiveColor = ContextCompat.getColor(getContext(), R.color.direction_inactive);
+        mapView.setDirectionPathOptions(activeColor, inactiveColor, 1.0f);
+        // Sets a RED and GREEN path
+        int redSolid = ContextCompat.getColor(getContext(), R.color.direction_red_solid);
+        int greenTransparent = ContextCompat.getColor(getContext(), R.color.direction_green_transparent);
+        mapView.setDirectionPathOptions(redSolid, greenTransparent, 1.0f);
+        */
 
-            // Check if the MAP_KEY is available from arguments
-            if (mapKey == null || mapKey.isEmpty()) {
-                Log.e(TAG, "MAP_KEY is null or empty. Cannot initialize MapView.");
-                TextView errorText = new TextView(getContext());
-                errorText.setText("Meridian SDK initialization failed: MAP_KEY is missing");
-                errorText.setTextColor(Color.RED);
-                return errorText;
-            }
+        // If you want to handle marker events
+        mapView.setMarkerEventListener(this);
 
-            // Get reference to the MapView from our inflated layout
-            mapView = layout.findViewById(R.id.demo_mapview);
-            if (mapView == null) {
-                Log.e(TAG, "Failed to find MapView with ID R.id.demo_mapview");
-                TextView errorText = new TextView(getContext());
-                errorText.setText("Failed to find MapView in layout");
-                errorText.setTextColor(Color.RED);
-                return errorText;
-            }
+        // Set map options if desired
+        MapOptions mapOptions = mapView.getOptions();
+        mapOptions.HIDE_MAP_LABEL = true;
+        mapView.setOptions(mapOptions);
 
-            Log.d(TAG, "✅ Successfully found MapView: " + mapView);
+        // Set which map to load
+        // It is recommended to do this after setting the map options
+        // Important: MAP_KEY is already an EditorKey object, not a string
+        mapView.setMapKey(Application.MAP_KEY);
 
-            // Configure the MapView with more visual cues and detailed logging
-            try {
-                Log.d(TAG, "Configuring MapView with APP_KEY: " + appKey);
-                Log.d(TAG, "Configuring MapView with MAP_KEY: " + mapKey);
+        // Demonstration of how to customize the mapView's locationMarker:
+        //    change default color for Bluetooth to orange
+        //    modify the name
+        //    modify the details
+        //    alternatively... hide the call-out entirely
+        /*
+        LocationMarker lm = mapView.getLocationMarker();
+        lm.setCustomColor(LocationMarker.State.BLUETOOTH, 0xffff7700);
+        lm.setName("Current Location Label");
+        lm.setDetails("Details");
+        //lm.setShowsCallout(false);
+         */
 
-                // Force MapView size refresh
-                mapView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-                int width = mapView.getMeasuredWidth();
-                int height = mapView.getMeasuredHeight();
-                Log.d(TAG, "MapView measured dimensions: " + width + "x" + height);
-
-                // Set up the MapView with keys from arguments
-                Log.d(TAG, "Setting up map with appKey: " + appKey + ", mapKey: " + mapKey);
-
-                try {
-                    // IMPORTANT: The Meridian SDK requires the map key to have the app key as its parent
-
-                    // 1. Get the app key object first
-                    Log.d(TAG, "Creating app key with ID: " + appKey);
-                    EditorKey editorAppKey = EditorKey.forApp(appKey);
-
-                    // 2. Set the app key on the map view
-                    Log.d(TAG, "Setting app key on map view: " + editorAppKey);
-                    mapView.setAppKey(editorAppKey);
-
-                    // 3. Create the map key - THIS IS THE KEY PART - get the app key from the map view
-                    // to ensure we're using exactly the same instance
-                    Log.d(TAG, "Getting app key from map view after setting it");
-                    EditorKey currentAppKey = mapView.getAppKey();
-                    Log.d(TAG, "Current app key from map view: " + currentAppKey);
-
-                    // 4. Create map key using the app key from the map view
-                    Log.d(TAG, "Creating map key with parent app key and ID: " + mapKey);
-                    EditorKey editorMapKey = EditorKey.forMap(currentAppKey, mapKey);
-                    Log.d(TAG, "Map key created: " + editorMapKey);
-
-                    // 5. Set the map key
-                    Log.d(TAG, "Setting map key on map view");
-                    mapView.setMapKey(editorMapKey);
-                } catch (Exception e) {
-                    Log.e(TAG, "Error setting map keys: " + e.getMessage(), e);
-                    throw e;
-                }
-
-                // Set basic event listeners
-                mapView.setMapEventListener(MapViewFragment.this);
-                mapView.setDirectionsEventListener(MapViewFragment.this);
-                mapView.setMarkerEventListener(MapViewFragment.this);
-
-                // Only start location updates if enabled
-                if (enableLocation) {
-                    setupLocationUpdates();
-                } else {
-                    Log.d(TAG, "Location updates disabled by configuration");
-                }
-
-                MapOptions mapOptions = mapView.getOptions();
-                mapOptions.HIDE_MAP_LABEL = false; // Show labels for debugging
-                // Set other options if needed - check MapOptions class for available options
-                mapView.setOptions(mapOptions);
-
-                // Try to force a refresh of the map
-                mapView.invalidate();
-
-                Log.d(TAG, "✨ MapView setup complete - waiting for map to load...");
-            } catch (Exception e) {
-                Log.e("MapViewFragment", "Error configuring MapView: " + e.getMessage(), e);
-                TextView errorText = new TextView(getContext());
-                errorText.setText("Error configuring MapView: " + e.getMessage());
-                errorText.setTextColor(Color.RED);
-                return errorText;
-            }
-
-            return layout;
-        } catch (Exception e) {
-            Log.e("MapViewFragment", "Exception in onCreateView: " + e.getMessage(), e);
-            TextView errorText = new TextView(getContext());
-            errorText.setText("Error initializing map view: " + e.getMessage());
-            errorText.setTextColor(Color.RED);
-            return errorText;
-        }
+        return layout;
     }
 
     @Override
@@ -208,36 +117,8 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
     @Override
     public void onDestroy() {
         super.onDestroy();
-
-        // No need to manually stop location updates as the MapView handles this
-
         // Clean up memory.
         mapView.onDestroy();
-    }
-
-    /**
-     * Sets up location updates for the MapView
-     */
-    private void setupLocationUpdates() {
-        try {
-            // For the Meridian MapView, we don't need to do anything special for location updates
-            // The MapView will handle this automatically based on its configuration
-
-            if (mapView == null) {
-                Log.e(TAG, "Cannot setup location updates: MapView is null");
-                return;
-            }
-
-            Log.d(TAG, "Setting up location tracking on MapView");
-
-            // The MapView API doesn't expose direct methods to enable location tracking
-            // through the public API. The map should handle location updates based on
-            // how it was configured when created.
-
-            Log.d(TAG, "Location updates: relying on default MapView configuration");
-        } catch (Exception e) {
-            Log.e(TAG, "Error with location updates: " + e.getMessage(), e);
-        }
     }
 
     //
@@ -296,8 +177,41 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
     //
     @Override
     public boolean onMarkerSelect(Marker marker) {
-        // prevent clustered markers from being selected
-        return (marker instanceof ClusteredMarker);
+        // Immediately showing the callout might help with the initial marker selection issue
+        if (marker instanceof ClusteredMarker) {
+            // prevent clustered markers from being selected
+            return true;
+        }
+
+        // For all other markers - force show callout
+        try {
+            // Get the Placemark for the marker
+            Placemark placemark = mapView.getAssociatedPlacemark(marker);
+            if (placemark != null) {
+                // Log marker selection and ensure callout is visible
+                Log.d("MapViewFragment", "Selected marker: " + placemark.getName());
+                
+                // Force the callout to be shown immediately
+                // This is a workaround for the issue where the callout doesn't appear until rerender
+                try {
+                    // If the marker has a callout, force it to show
+                    marker.setShowsCallout(true);
+                    
+                    // Refresh the UI to make the callout appear immediately
+                    mapView.invalidate();
+                    
+                    Log.d("MapViewFragment", "Forcibly showing callout for marker");
+                } catch (Exception calloutEx) {
+                    Log.e("MapViewFragment", "Error showing callout: " + calloutEx.getMessage(), calloutEx);
+                }
+            }
+
+            // Return false to also allow default handling
+            return false;
+        } catch (Exception e) {
+            Log.e("MapViewFragment", "Error in onMarkerSelect: " + e.getMessage(), e);
+            return false;
+        }
     }
     @Override
     public boolean onMarkerDeselect(Marker marker) {
@@ -335,8 +249,9 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
         mapView.onDirectionsRequestStart();
 
             // Lets see if we can get the users location
+            // Note: This method expects an EditorKey, which is what Application.APP_KEY already is
             locationRequest =
-                    LocationRequest.requestCurrentLocation(getActivity(), MeridianApplication.APP_KEY, new LocationRequest.LocationRequestListener() {
+                    LocationRequest.requestCurrentLocation(getActivity(), Application.APP_KEY, new LocationRequest.LocationRequestListener() {
                         @Override
                         public void onResult(MeridianLocation location) {
                             if (location == null) {
@@ -361,8 +276,8 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
         // start location from the user.
 
         // Handle any exclusions
-        EditorKey appEditorKey = EditorKey.forApp(appKey);
-        Intent i = SearchActivity.createIntent(getActivity(), appEditorKey,
+        // The SearchActivity.createIntent method expects an EditorKey object, which is what Application.APP_KEY is
+        Intent i = SearchActivity.createIntent(getActivity(), Application.APP_KEY,
                 destination == null ? null : destination.getSearchExclusions());
         i.putExtra(PENDING_DESTINATION_KEY, destination);
         startActivityForResult(i, SOURCE_REQUEST_CODE);
@@ -375,7 +290,8 @@ public class MapViewFragment extends Fragment implements MapView.DirectionsEvent
         }
 
         directions = new Directions.Builder()
-                .setAppKey(EditorKey.forApp(appKey))
+                // The setAppKey method expects an EditorKey object, which is what Application.APP_KEY is
+                .setAppKey(Application.APP_KEY)
                 .setDestination(destination)
                 .setListener(new Directions.DirectionsRequestListener() {
                     @Override
