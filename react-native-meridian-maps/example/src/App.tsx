@@ -7,7 +7,6 @@ import {
   Button,
   NativeModules,
   Platform,
-  ScrollView,
   UIManager,
   Alert,
 } from 'react-native';
@@ -71,17 +70,51 @@ export default function App() {
     }
   };
 
+  const handleLocationUpdate = (location: any) => {
+    console.log('Location updated:', location);
+  };
+
+  const handleMarkerSelect = (marker: any) => {
+    console.log('Marker selected:', marker);
+  };
+
+  const handleMarkerDeselect = (marker: any) => {
+    console.log('Marker deselected:', marker);
+  };
+
+  const handleMapLoadStart = () => {
+    console.log('Map load start');
+  };
+
+  const handleMapLoadFinish = () => {
+    console.log('Map load finish');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.scrollContent}>
         <Text style={styles.title}>Meridian Maps Test</Text>
 
         {/* Debug Info */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>{debugInfo}</Text>
         </View>
+        <MeridianMapView
+          style={styles.map}
+          settings={{
+            appKey: '5809862863224832',
+            mapKey: '5668600916475904',
+            showLocationUpdates: true,
+          }}
+          onMapLoadFail={handleMapError}
+          onLocationUpdated={handleLocationUpdate}
+          onMarkerDeselect={handleMarkerDeselect}
+          onMarkerSelect={handleMarkerSelect}
+          onMapLoadStart={handleMapLoadStart}
+          onMapLoadFinish={handleMapLoadFinish}
+        />
 
-        <View style={styles.mapContainer}>
+        <View style={[styles.mapContainer]}>
           <Text style={styles.mapLabel}>Meridian Map</Text>
           {mapError ? (
             <Text style={styles.errorText}>Error: {mapError}</Text>
@@ -94,6 +127,11 @@ export default function App() {
                 showLocationUpdates: true,
               }}
               onMapLoadFail={handleMapError}
+              onLocationUpdated={handleLocationUpdate}
+              onMarkerDeselect={handleMarkerDeselect}
+              onMarkerSelect={handleMarkerSelect}
+              onMapLoadStart={handleMapLoadStart}
+              onMapLoadFinish={handleMapLoadFinish}
             />
           )}
         </View>
@@ -105,9 +143,7 @@ export default function App() {
             onPress={toggleMap}
           />
         </View>
-
-        {/* Map Component */}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -119,7 +155,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 50,
+    marginBottom: 100,
   },
   title: {
     fontSize: 22,
@@ -147,11 +183,11 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     width: '100%',
-    height: 600,
+    height: 601,
     borderWidth: 2,
     borderColor: '#E91E63',
     borderRadius: 8,
-    overflow: 'hidden',
+    // overflow: 'hidden',
     marginTop: 16,
   },
   mapLabel: {

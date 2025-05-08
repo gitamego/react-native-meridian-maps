@@ -22,30 +22,30 @@ class MeridianMapActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         try {
             // Set the layout
             setContentView(R.layout.activity_meridian_map)
-            
+
             // Hide action bar
             supportActionBar?.hide()
-            
+
             // Set up back button
             val btnBack = findViewById<Button>(R.id.btn_back)
             btnBack.setOnClickListener {
                 finish()
             }
-            
+
             // Init the map
             initializeMap()
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error in onCreate: ${e.message}", e)
             Toast.makeText(this, "Error initializing the map activity.", Toast.LENGTH_SHORT).show()
             finish()
         }
     }
-    
+
     private fun initializeMap() {
         try {
             // Check if SDK is initialized
@@ -53,61 +53,61 @@ class MeridianMapActivity : AppCompatActivity() {
                 Log.d(TAG, "Initializing Meridian SDK")
                 Meridian.configure(applicationContext, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk")
             }
-            
+
             // Find the map view
             mapView = findViewById(R.id.meridian_map_view)
-            
+
             // Get app and map keys
             val appId = intent.getStringExtra("APP_KEY") ?: "5809862863224832"
             val mapId = intent.getStringExtra("MAP_KEY") ?: "5668600916475904"
-            
+
             Log.d(TAG, "Using APP_KEY=$appId and MAP_KEY=$mapId")
-            
+
             // Create editor keys
             val appKey = EditorKey.forApp(appId)
             val mapKey = EditorKey.forMap(mapId, appKey)
-            
+
             // Set up map view
             mapView?.let { map ->
                 // First set app key (required step)
                 map.setAppKey(appKey)
-                
+
                 // Configure basic map options
                 val options = map.options
                 options.HIDE_MAP_LABEL = true
-                
+
                 // Set options
                 map.options = options
-                
+
                 // Set basic map listener
                 map.setMapEventListener(object : MapView.MapEventListener {
                     override fun onMapLoadStart() {
                         Log.d(TAG, "Map load started")
                     }
-                    
+
                     override fun onMapLoadFinish() {
                         Log.d(TAG, "Map load finished")
                     }
-                    
+
                     override fun onPlacemarksLoadFinish() {
                         Log.d(TAG, "Placemarks loaded")
                     }
-                    
+
                     override fun onMapLoadFail(tr: Throwable) {
                         Log.e(TAG, "Map load failed: ${tr.message}", tr)
                         runOnUiThread {
-                            Toast.makeText(this@MeridianMapActivity, 
+                            Toast.makeText(this@MeridianMapActivity,
                                 "Failed to load map: ${tr.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    
+
                     // Implement required methods with empty bodies
                     override fun onMapRenderFinish() {}
                     override fun onMapTransformChange(transform: android.graphics.Matrix) {}
                     override fun onLocationUpdated(location: com.arubanetworks.meridian.location.MeridianLocation) {}
                     override fun onOrientationUpdated(orientation: com.arubanetworks.meridian.location.MeridianOrientation) {}
                 })
-                
+
                 // Load the map with map key
                 Log.d(TAG, "Loading map with key: $mapKey")
                 map.setMapKey(mapKey)
@@ -117,7 +117,7 @@ class MeridianMapActivity : AppCompatActivity() {
             Toast.makeText(this, "Error initializing map: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
-    
+
     override fun onResume() {
         super.onResume()
         try {
@@ -126,7 +126,7 @@ class MeridianMapActivity : AppCompatActivity() {
             Log.e(TAG, "Error in onResume: ${e.message}", e)
         }
     }
-    
+
     override fun onPause() {
         try {
             mapView?.onPause()
@@ -135,7 +135,7 @@ class MeridianMapActivity : AppCompatActivity() {
         }
         super.onPause()
     }
-    
+
     override fun onDestroy() {
         try {
             mapView?.onDestroy()

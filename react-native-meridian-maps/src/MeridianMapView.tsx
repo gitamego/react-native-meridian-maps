@@ -73,32 +73,32 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
   const [hasError, setHasError] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
   const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
-  
+
   // Validate required settings
   useEffect(() => {
     if (!props.settings?.appKey) {
       setHasError('Missing appKey in settings');
       console.error('MeridianMapView requires an appKey in settings');
     }
-    
+
     if (!props.settings?.mapKey) {
       setHasError('Missing mapKey in settings');
       console.error('MeridianMapView requires a mapKey in settings');
     }
   }, [props.settings]);
-  
+
   // Set up event handlers
   useEffect(() => {
     if (!isComponentAvailable || !mapRef.current) return;
-    
+
     // Try to create event emitter for this component
     try {
       const nodeId = findNodeHandle(mapRef.current);
       console.log('MeridianMapView node handle ID:', nodeId);
-      
+
       // Listen for events from native side
       const eventEmitter = new NativeEventEmitter(NativeModules.MeridianMaps);
-      
+
       // Map event listeners
       const subscriptions = [
         eventEmitter.addListener('onMapLoadStart', () => {
@@ -130,7 +130,7 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
           props.onError?.(event);
         }),
       ];
-      
+
       return () => {
         // Clean up subscriptions
         subscriptions.forEach(subscription => subscription.remove());
@@ -139,9 +139,9 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
       console.error('Error setting up event listeners:', e);
       return () => {}; // Return empty cleanup function to handle all code paths
     }
-  }, [mapRef.current, isComponentAvailable, props.onMapLoadStart, props.onMapLoadFinish, 
+  }, [mapRef.current, isComponentAvailable, props.onMapLoadStart, props.onMapLoadFinish,
       props.onMapLoadFail, props.onLocationUpdated, props.onMarkerSelect, props.onMarkerDeselect, props.onError]);  // Fix dependency array
-  
+
   // Check SDK availability on mount
   useEffect(() => {
     // Check availability on mount
@@ -181,15 +181,15 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       {isComponentAvailable ? (
-        <NativeMeridianMapView 
+        <NativeMeridianMapView
           // @ts-ignore - The native component accepts a ref prop
           ref={mapRef}
-          {...props} 
-          style={combinedStyle} 
+          {...props}
+          style={combinedStyle}
           settings={{
             showLocationUpdates: true,
             ...props.settings,
@@ -223,14 +223,14 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     flex: 1, // Take all available space instead of fixed height
-    overflow: 'hidden',
+    // overflow: 'hidden',
   },
   mapView: {
     flex: 1,
     height: '100%',
     width: '100%',
     backgroundColor: '#f4f4f8', // Light background color for the map
-    overflow: 'hidden',
+    // overflow: 'hidden',
   },
 });
 

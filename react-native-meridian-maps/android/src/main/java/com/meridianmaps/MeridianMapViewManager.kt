@@ -60,13 +60,14 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
     }
 
     override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
-        return MapBuilder.builder<String, Any>()
-            .put("onMapLoadStart", MapBuilder.of("registrationName", "onMapLoadStart"))
-            .put("onMapLoadFinish", MapBuilder.of("registrationName", "onMapLoadFinish"))
-            .put("onMapLoadFail", MapBuilder.of("registrationName", "onMapLoadFail"))
-            .put("onMarkerSelect", MapBuilder.of("registrationName", "onMarkerSelect"))
-            .put("onLocationUpdate", MapBuilder.of("registrationName", "onLocationUpdate"))
-            .build()
+        // TODO: MapBuilder is deprecated. Replace with a non-deprecated alternative if available in the SDK.
+        return mapOf(
+            "onMapLoadStart" to mapOf("registrationName" to "onMapLoadStart"),
+            "onMapLoadFinish" to mapOf("registrationName" to "onMapLoadFinish"),
+            "onMapLoadFail" to mapOf("registrationName" to "onMapLoadFail"),
+            "onMarkerSelect" to mapOf("registrationName" to "onMarkerSelect"),
+            "onLocationUpdate" to mapOf("registrationName" to "onLocationUpdate")
+        )
     }
 }
 
