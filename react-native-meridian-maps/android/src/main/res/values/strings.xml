@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name" translatable="false">Samples</string>
+    <string name="url_scheme" translatable="false">com.arubanetworks.meridian-samples</string>
+    <string name="title_directions" translatable="false">Directions</string>
+    <string name="navigation_drawer_open" translatable="false">Open navigation drawer</string>
+    <string name="navigation_drawer_close" translatable="false">Close navigation drawer</string>
+    <string name="action_settings" translatable="false">Settings</string>
+    <string name="action_search" translatable="false">Search</string>
+    <string name="location_request" translatable="false">Request Location</string>
+    <string name="manual_report" translatable="false">Report Issue</string>
+    <string name="query_hint" translatable="false">Find up to ten local items&#8230;</string>
+    <string name="search_query_hint" translatable="false">Find ten placemarks&#8230;</string>
+
+    <string name="location_sharing_create_profile" translatable="false">Create a Sample Location Sharing Profile</string>
+    <string name="location_sharing_start_updating_location" translatable="false">Start Uploading your Location</string>
+    <string name="location_sharing_stop_updating_location" translatable="false">Stop Uploading your Location</string>
+    <string name="location_sharing_create_invite" translatable="false">Create Invite</string>
+    <string name="location_sharing_accept_invite" translatable="false">Accept Invite</string>
+    <string name="location_sharing_retrieve_friends" translatable="false">Retrieve Friends</string>
+    <string name="location_sharing_upload_user_image" translatable="false">Upload User Image</string>
+
+    <string name="triggers_start_monitoring" translatable="false">Start</string>
+    <string name="triggers_stop_monitoring" translatable="false">Stop</string>
+    <string name="triggers_reset" translatable="false">Reset</string>
+
+    <string name="settings_about" translatable="false">About</string>
+    <string name="settings_about_version" translatable="false">SDK Version</string>
+
+    <string name="last_heard" translatable="false">Last Heard</string>
+    <string name="last_heard_now" translatable="false">Now</string>
+    <string name="age_format_days" formatted="true" translatable="false">%1$d days, %2$d hours and %3$d min. ago</string>
+    <string name="age_format_hours" formatted="true" translatable="false">%1$d hours and %2$d min. ago</string>
+    <string name="age_format_minutes" formatted="true" translatable="false">%1$d min. ago</string>
+    <string name="age_format_seconds" formatted="true" translatable="false">%1$d seconds ago</string>
+    <string name="age_format_second" formatted="true" translatable="false">1 second ago</string>
+    <string name="add_google_maps_key" translatable="false">ADD_YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
+    <string name="demo_image" translatable="false">Demonstration of using Meridian image</string>
+
+    <string-array name="section_titles">
+        <item>Maps</item>
+        <item>Nearby</item>
+        <item>Search</item>
+        <item>Markers</item>
+        <item>Triggers</item>
+        <item>Scrolling</item>
+        <item>Location</item>
+        <item>Location Sharing</item>
+        <item>Single Marker</item>
+        <item>Tags</item>
+        <item>Location Sharing Map</item>
+        <item>Overlays</item>
+        <item>Map View</item>
+        <item>Bottom Sheet (Beta)</item>
+        <item>Google Maps Integration</item>
+        <item>Placemark Deeplink</item>
+    </string-array>
+
+</resources>

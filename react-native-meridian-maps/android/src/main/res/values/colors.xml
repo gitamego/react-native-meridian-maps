@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="drawer_background">#DADFE1</color>
+    <color name="drawer_text_color">#111</color>
+    <color name="overlay_red_stroke">#77FF2222</color>
+    <color name="overlay_red_fill">#33FF2222</color>
+    <color name="overlay_blue_stroke">#772222FF</color>
+    <color name="overlay_blue_fill">#332222FF</color>
+    <color name="overlay_green_stroke">#7722FF22</color>
+    <color name="overlay_green_fill">#3322FF22</color>
+    <color name="overlay_purple_stroke">#FF770099</color>
+    <color name="overlay_purple_fill">#33770099</color>
+    <color name="direction_active">#FF2E7CBE</color>
+    <color name="direction_inactive">#442E7CBE</color>
+    <color name="direction_red_solid">#FFFF0000</color>
+    <color name="direction_green_transparent">#4400FF00</color>
+</resources>
