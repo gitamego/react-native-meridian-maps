@@ -99,20 +99,6 @@ export default function App() {
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>{debugInfo}</Text>
         </View>
-        <MeridianMapView
-          style={styles.map}
-          settings={{
-            appKey: '5809862863224832',
-            mapKey: '5668600916475904',
-            showLocationUpdates: true,
-          }}
-          onMapLoadFail={handleMapError}
-          onLocationUpdated={handleLocationUpdate}
-          onMarkerDeselect={handleMarkerDeselect}
-          onMarkerSelect={handleMarkerSelect}
-          onMapLoadStart={handleMapLoadStart}
-          onMapLoadFinish={handleMapLoadFinish}
-        />
 
         <View style={[styles.mapContainer]}>
           <Text style={styles.mapLabel}>Meridian Map</Text>
@@ -183,7 +169,7 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     width: '100%',
-    height: 601,
+    height: 500,
     borderWidth: 2,
     borderColor: '#E91E63',
     borderRadius: 8,
