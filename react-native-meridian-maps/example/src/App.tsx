@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -10,13 +10,14 @@ import {
   UIManager,
   Alert,
 } from 'react-native';
-import { MeridianMapView } from 'react-native-meridian-maps';
+import { MeridianMapView, type MeridianMapViewComponentRef } from 'react-native-meridian-maps';
 
 export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
   const [showMap, setShowMap] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-
+  const [activeKey, setActiveKey] = useState('');
+  const mapViewRef = useRef<MeridianMapViewComponentRef>(null);
   // Handle map errors
   const handleMapError = (event: any) => {
     const errorMsg = event.nativeEvent?.error || 'Unknown map error';
@@ -62,6 +63,14 @@ export default function App() {
     checkAvailability();
   }, []);
 
+  // Effect to trigger map update when activeKey changes
+  useEffect(() => {
+    if (activeKey && mapViewRef.current) {
+      console.log(`App.tsx: activeKey changed to "${activeKey}", calling triggerUpdate().`);
+      mapViewRef.current.triggerUpdate();
+    }
+  }, [activeKey]);
+
   // Toggle map visibility
   const toggleMap = () => {
     setShowMap(!showMap);
@@ -71,22 +80,27 @@ export default function App() {
   };
 
   const handleLocationUpdate = (location: any) => {
+    setActiveKey('locationUpdate');
     console.log('Location updated:', location);
   };
 
   const handleMarkerSelect = (marker: any) => {
+    setActiveKey('markerSelect');
     console.log('Marker selected:', marker);
   };
 
   const handleMarkerDeselect = (marker: any) => {
+    setActiveKey('markerDeselect');
     console.log('Marker deselected:', marker);
   };
 
   const handleMapLoadStart = () => {
+    // setActiveKey('mapLoadStart');
     console.log('Map load start');
   };
 
   const handleMapLoadFinish = () => {
+    setActiveKey('mapLoadFinish');
     console.log('Map load finish');
   };
 
@@ -101,11 +115,13 @@ export default function App() {
         </View>
 
         <View style={[styles.mapContainer]}>
+          {/* <View style={[styles.mapContainer]} key={activeKey}> */}
           <Text style={styles.mapLabel}>Meridian Map</Text>
           {mapError ? (
             <Text style={styles.errorText}>Error: {mapError}</Text>
           ) : (
             <MeridianMapView
+              ref={mapViewRef}
               style={styles.map}
               settings={{
                 appKey: '5809862863224832',

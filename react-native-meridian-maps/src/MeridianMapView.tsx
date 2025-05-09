@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import {
+  useEffect,
+  useState,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import {
   requireNativeComponent,
   UIManager,
@@ -20,7 +26,10 @@ console.log('Available Native Modules:', Object.keys(NativeModules).join(', '));
 
 // Log available view managers
 if (UIManager.getViewManagerConfig) {
-  console.log('Available View Managers:', Object.keys(UIManager.getViewManagerConfig).join(', '));
+  console.log(
+    'Available View Managers:',
+    Object.keys(UIManager.getViewManagerConfig).join(', ')
+  );
 } else {
   console.log('Unable to get view manager config');
 }
@@ -51,9 +60,14 @@ const ComponentName = 'MeridianMapView';
 const isComponentAvailable =
   UIManager.getViewManagerConfig(ComponentName) != null;
 
-console.log(`MeridianMapView component available: ${isComponentAvailable ? 'YES' : 'NO'}`);
+console.log(
+  `MeridianMapView component available: ${isComponentAvailable ? 'YES' : 'NO'}`
+);
 if (!isComponentAvailable) {
-  console.error('Available view managers:', Object.keys(UIManager.getViewManagerConfig || {}).join(', '));
+  console.error(
+    'Available view managers:',
+    Object.keys(UIManager.getViewManagerConfig || {}).join(', ')
+  );
 }
 
 const NativeMeridianMapView = isComponentAvailable
@@ -68,11 +82,39 @@ const NativeMeridianMapView = isComponentAvailable
     };
 
 // Create a wrapper component with event handling and proper mounting behavior
-export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
+export interface MeridianMapViewComponentRef {
+  triggerUpdate: () => void;
+}
+
+export const MeridianMapView = forwardRef<
+  MeridianMapViewComponentRef,
+  MeridianMapViewProps
+>((props, ref) => {
   const [isMapAvailable, setIsMapAvailable] = useState<boolean | null>(null);
   const [hasError, setHasError] = useState<string | null>(null);
-  const mapRef = useRef<any>(null);
+  const [activeKey, setActiveKey] = useState('');
+  const nativeMapRef = useRef<any>(null); // Renamed to avoid conflict with forwardRef's 'ref'
   const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
+
+  // --- Core function to dispatch the update command ---
+  const executeNativeUpdateCommand = () => {
+    if (nativeMapRef.current) {
+      const commandId =
+        UIManager.getViewManagerConfig(ComponentName)?.Commands?.triggerUpdate;
+      if (commandId !== undefined) {
+        UIManager.dispatchViewManagerCommand(
+          findNodeHandle(nativeMapRef.current),
+          commandId,
+          [] // No arguments needed for this command
+        );
+        console.log('Dispatched triggerUpdate command to native MapView');
+      } else {
+        console.warn('triggerUpdate command not found for MeridianMapView');
+      }
+    } else {
+      console.warn('Cannot trigger update, nativeMapRef is not set.');
+    }
+  };
 
   // Validate required settings
   useEffect(() => {
@@ -89,11 +131,11 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
 
   // Set up event handlers
   useEffect(() => {
-    if (!isComponentAvailable || !mapRef.current) return;
+    if (!isComponentAvailable || !nativeMapRef.current) return;
 
     // Try to create event emitter for this component
     try {
-      const nodeId = findNodeHandle(mapRef.current);
+      const nodeId = findNodeHandle(nativeMapRef.current);
       console.log('MeridianMapView node handle ID:', nodeId);
 
       // Listen for events from native side
@@ -103,44 +145,76 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
       const subscriptions = [
         eventEmitter.addListener('onMapLoadStart', () => {
           console.log('Map load started');
+          // setActiveKey('mapLoadStart');
           props.onMapLoadStart?.();
         }),
         eventEmitter.addListener('onMapLoadFinish', () => {
           console.log('Map load finished');
+          // setActiveKey('mapLoadFinish');
           props.onMapLoadFinish?.();
         }),
         eventEmitter.addListener('onMapLoadFail', (event) => {
           console.error('Map load failed:', event);
+          // setActiveKey('mapLoadFail');
           props.onMapLoadFail?.(event);
         }),
         eventEmitter.addListener('onLocationUpdated', (event) => {
           console.log('Location updated:', event);
+          // setActiveKey('locationUpdated');
           props.onLocationUpdated?.(event);
         }),
         eventEmitter.addListener('onMarkerSelect', (event) => {
           console.log('Marker selected:', event);
+          // setActiveKey('markerSelect');
           props.onMarkerSelect?.(event);
         }),
         eventEmitter.addListener('onMarkerDeselect', (event) => {
           console.log('Marker deselected:', event);
+          // setActiveKey('markerDeselect');
           props.onMarkerDeselect?.(event);
         }),
         eventEmitter.addListener('onError', (event) => {
           console.error('Map error:', event);
+          // setActiveKey('error');
           props.onError?.(event);
         }),
       ];
 
       return () => {
         // Clean up subscriptions
-        subscriptions.forEach(subscription => subscription.remove());
+        subscriptions.forEach((subscription) => subscription.remove());
       };
     } catch (e) {
       console.error('Error setting up event listeners:', e);
       return () => {}; // Return empty cleanup function to handle all code paths
     }
-  }, [mapRef.current, isComponentAvailable, props.onMapLoadStart, props.onMapLoadFinish,
-      props.onMapLoadFail, props.onLocationUpdated, props.onMarkerSelect, props.onMarkerDeselect, props.onError]);  // Fix dependency array
+  }, [
+    nativeMapRef.current,
+    isComponentAvailable,
+    props.onMapLoadStart,
+    props.onMapLoadFinish,
+    props.onMapLoadFail,
+    props.onLocationUpdated,
+    props.onMarkerSelect,
+    props.onMarkerDeselect,
+    props.onError,
+  ]); // Fix dependency array
+
+  // Expose triggerUpdate method via ref
+  useImperativeHandle(ref, () => ({
+    triggerUpdate: () => {
+      console.log('Parent component triggered update.'); // Optional: Log if called externally
+      executeNativeUpdateCommand();
+    },
+  }));
+
+  // --- Effect to trigger update when internal activeKey changes ---
+  // useEffect(() => {
+  //   if (activeKey) { // Only trigger if activeKey has a value
+  //     console.log(`Internal activeKey changed to: ${activeKey}, triggering map update.`);
+  //     executeNativeUpdateCommand();
+  //   }
+  // }, [activeKey]); // Dependency: activeKey
 
   // Check SDK availability on mount
   useEffect(() => {
@@ -159,7 +233,16 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
   // Show different states based on availability
   if (isMapAvailable === false) {
     return (
-      <View style={[styles.container, { backgroundColor: '#ffdddd', justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: '#ffdddd',
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+        ]}
+      >
         <Text style={{ color: '#990000', textAlign: 'center' }}>
           Meridian SDK not available{'\n'}
           Please check your installation and restart the app.
@@ -171,8 +254,15 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
   // Show error if validation failed
   if (hasError) {
     return (
-      <View style={[styles.container, { backgroundColor: '#ffeeee', justifyContent: 'center', padding: 20 }]}>
-        <Text style={{ color: '#cc0000', textAlign: 'center', fontWeight: 'bold' }}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: '#ffeeee', justifyContent: 'center', padding: 20 },
+        ]}
+      >
+        <Text
+          style={{ color: '#cc0000', textAlign: 'center', fontWeight: 'bold' }}
+        >
           Configuration Error
         </Text>
         <Text style={{ color: '#cc0000', textAlign: 'center', marginTop: 8 }}>
@@ -187,7 +277,7 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
       {isComponentAvailable ? (
         <NativeMeridianMapView
           // @ts-ignore - The native component accepts a ref prop
-          ref={mapRef}
+          ref={nativeMapRef}
           {...props}
           style={combinedStyle}
           settings={{
@@ -207,7 +297,13 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
             },
           ]}
         >
-          <Text style={{ color: '#990000', textAlign: 'center', fontWeight: 'bold' }}>
+          <Text
+            style={{
+              color: '#990000',
+              textAlign: 'center',
+              fontWeight: 'bold',
+            }}
+          >
             Native MeridianMapView component is not available
           </Text>
           <Text style={{ color: '#990000', textAlign: 'center', marginTop: 8 }}>
@@ -217,7 +313,7 @@ export const MeridianMapView: React.FC<MeridianMapViewProps> = (props) => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -265,17 +361,26 @@ export const isAvailable = async (): Promise<boolean> => {
     console.log('Checking if MeridianMap native module is available...');
 
     // First check if the component is registered in UIManager
-    const componentAvailable = UIManager.getViewManagerConfig(ComponentName) != null;
-    console.log(`MeridianMapView component available: ${componentAvailable ? 'YES' : 'NO'}`);
+    const componentAvailable =
+      UIManager.getViewManagerConfig(ComponentName) != null;
+    console.log(
+      `MeridianMapView component available: ${componentAvailable ? 'YES' : 'NO'}`
+    );
 
     // Then check if the module is available
-    const moduleAvailable = !!MeridianMapsModule && typeof MeridianMapsModule.openMap === 'function';
-    console.log(`MeridianMaps module available: ${moduleAvailable ? 'YES' : 'NO'}`);
+    const moduleAvailable =
+      !!MeridianMapsModule && typeof MeridianMapsModule.openMap === 'function';
+    console.log(
+      `MeridianMaps module available: ${moduleAvailable ? 'YES' : 'NO'}`
+    );
 
     // As a fallback, try the isModuleAvailable method if it exists
     let sdkAvailable = false;
     try {
-      if (MeridianMapNative && typeof MeridianMapNative.isModuleAvailable === 'function') {
+      if (
+        MeridianMapNative &&
+        typeof MeridianMapNative.isModuleAvailable === 'function'
+      ) {
         const result = await MeridianMapNative.isModuleAvailable();
         if (typeof result === 'boolean') {
           sdkAvailable = result;
