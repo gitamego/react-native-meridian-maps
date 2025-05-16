@@ -167,5 +167,8 @@
     "languages": "kotlin-objc",
     "type": "turbo-module",
     "version": "0.50.2"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
   }
 }

@@ -50,7 +50,23 @@ type MeridianMapViewProps = {
   onMapLoadFail?: (error: any) => void;
   onLocationUpdated?: (location: any) => void;
   onMarkerSelect?: (marker: any) => void;
+  onMapTransformChange?: (marker: any) => void;
   onMarkerDeselect?: (marker: any) => void;
+  onOrientationUpdated?: (marker: any) => void;
+  onSearchActivityStarted?: (marker: any) => void;
+  onDirectionsReroute?: (marker: any) => void;
+  onDirectionsClick?: (marker: any) => void;
+  onDirectionsStart?: (marker: any) => void;
+  onRouteStepIndexChange?: (marker: any) => void;
+  onDirectionsClosed?: (marker: any) => void;
+  onDirectionsError?: (marker: any) => void;
+  onUseAccessiblePathsChange?: (marker: any) => void;
+  onDirectionsCalculated?: (marker: any) => void;
+  onDirectionsRequestComplete?: (marker: any) => void;
+  onDirectionsRequestError?: (marker: any) => void;
+  onDirectionsRequestCanceled?: (marker: any) => void;
+  markerForSelectedMarker?: (marker: any) => void;
+  onCalloutClick?: (marker: any) => void;
   onError?: (error: any) => void;
 };
 
@@ -92,7 +108,6 @@ export const MeridianMapView = forwardRef<
 >((props, ref) => {
   const [isMapAvailable, setIsMapAvailable] = useState<boolean | null>(null);
   const [hasError, setHasError] = useState<string | null>(null);
-  const [activeKey, setActiveKey] = useState('');
   const nativeMapRef = useRef<any>(null); // Renamed to avoid conflict with forwardRef's 'ref'
   const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
 
@@ -150,33 +165,96 @@ export const MeridianMapView = forwardRef<
         }),
         eventEmitter.addListener('onMapLoadFinish', () => {
           console.log('Map load finished');
-          // setActiveKey('mapLoadFinish');
           props.onMapLoadFinish?.();
         }),
         eventEmitter.addListener('onMapLoadFail', (event) => {
           console.error('Map load failed:', event);
-          // setActiveKey('mapLoadFail');
           props.onMapLoadFail?.(event);
         }),
         eventEmitter.addListener('onLocationUpdated', (event) => {
           console.log('Location updated:', event);
-          // setActiveKey('locationUpdated');
           props.onLocationUpdated?.(event);
         }),
         eventEmitter.addListener('onMarkerSelect', (event) => {
           console.log('Marker selected:', event);
-          // setActiveKey('markerSelect');
           props.onMarkerSelect?.(event);
         }),
         eventEmitter.addListener('onMarkerDeselect', (event) => {
           console.log('Marker deselected:', event);
-          // setActiveKey('markerDeselect');
           props.onMarkerDeselect?.(event);
         }),
         eventEmitter.addListener('onError', (event) => {
           console.error('Map error:', event);
           // setActiveKey('error');
           props.onError?.(event);
+        }),
+        eventEmitter.addListener('onMapTransformChange', (event) => {
+          console.log('Map onMapTransformChange:', event);
+
+          props.onMapTransformChange?.(event);
+        }),
+        eventEmitter.addListener('onOrientationUpdated', (event) => {
+          console.log('Map onOrientationUpdated:', event);
+
+          props.onOrientationUpdated?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsReroute', (event) => {
+          console.log('Map onDirectionsReroute:', event);
+
+          props.onDirectionsReroute?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsClick', (event) => {
+          console.log('Map onDirectionsClick:', event);
+
+          props.onDirectionsClick?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsStart', (event) => {
+          console.log('Map onDirectionsStart:', event);
+          props.onDirectionsStart?.(event);
+        }),
+        eventEmitter.addListener('onRouteStepIndexChange', (event) => {
+          console.log('Map onRouteStepIndexChange:', event);
+          props.onRouteStepIndexChange?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsClosed', (event) => {
+          console.log('Map onDirectionsClosed:', event);
+          props.onDirectionsClosed?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsError', (event) => {
+          console.log('Map onDirectionsError:', event);
+          props.onDirectionsError?.(event);
+        }),
+        eventEmitter.addListener('onUseAccessiblePathsChange', (event) => {
+          console.log('Map onUseAccessiblePathsChange:', event);
+          props.onUseAccessiblePathsChange?.(event);
+        }),
+        eventEmitter.addListener('markerForSelectedMarker', (event) => {
+          console.log('Map markerForSelectedMarker:', event);
+          props.markerForSelectedMarker?.(event);
+        }),
+        eventEmitter.addListener('onCalloutClick', (event) => {
+          console.log('Map onCalloutClick:', event);
+          props.onCalloutClick?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsCalculated', (event) => {
+          console.log('Map onDirectionsCalculated:', event);
+          props.onDirectionsCalculated?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsRequestComplete', (event) => {
+          console.log('Map onDirectionsRequestComplete:', event);
+          props.onDirectionsRequestComplete?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsRequestError', (event) => {
+          console.log('Map onDirectionsRequestError:', event);
+          props.onDirectionsRequestError?.(event);
+        }),
+        eventEmitter.addListener('onDirectionsRequestCanceled', (event) => {
+          console.log('Map onDirectionsRequestCanceled:', event);
+          props.onDirectionsRequestCanceled?.(event);
+        }),
+        eventEmitter.addListener('onSearchActivityStarted', (event) => {
+          console.log('Map onSearchActivityStarted:', event);
+          props.onSearchActivityStarted?.(event);
         }),
       ];
 

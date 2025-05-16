@@ -375,6 +375,7 @@ public class MapViewFragment extends Fragment
     // Handle any exclusions
     // The SearchActivity.createIntent method expects an EditorKey object, which is
     // what Application.APP_KEY is
+    sendEvent("onSearchActivityStarted", null);
     Intent i = SearchActivity.createIntent(getActivity(), Application.APP_KEY,
         destination == null ? null : destination.getSearchExclusions());
     i.putExtra(PENDING_DESTINATION_KEY, destination);
@@ -405,6 +406,7 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestComplete(DirectionsResponse response) {
             if (mapView != null) {
               mapView.onDirectionsRequestComplete(response);
+              sendEvent("onDirectionsRequestComplete", null);
             }
           }
 
@@ -412,6 +414,7 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestError(final Throwable th) {
             if (mapView != null) {
               mapView.onDirectionsRequestError(th);
+              sendEvent("onDirectionsRequestError", null);
             }
           }
 
@@ -419,12 +422,14 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestCanceled() {
             if (mapView != null) {
               mapView.onDirectionsRequestCanceled();
+              sendEvent("onDirectionsRequestCanceled", null);
             }
           }
         })
         .setTransportType(TransportType.WALKING)
         .setSource(source).build();
     directions.calculate();
+    sendEvent("onDirectionsCalculated", null);
   }
 
   @Override
