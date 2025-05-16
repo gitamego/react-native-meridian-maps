@@ -1,6 +1,6 @@
 {
   "name": "react-native-meridian-maps",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -167,5 +167,8 @@
     "languages": "kotlin-objc",
     "type": "turbo-module",
     "version": "0.50.2"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
   }
 }

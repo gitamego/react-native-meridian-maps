@@ -37,6 +37,16 @@ import java.util.ArrayList;
 public class MapViewFragment extends Fragment
     implements MapView.DirectionsEventListener, MapView.MapEventListener, MapView.MarkerEventListener {
 
+  // Store ThemedReactContext for event emission
+  private com.facebook.react.uimanager.ThemedReactContext themedReactContext;
+
+  /**
+   * Set the ThemedReactContext from the parent container
+   */
+  public void setThemedReactContext(com.facebook.react.uimanager.ThemedReactContext themedReactContext) {
+    this.themedReactContext = themedReactContext;
+  }
+
   /**
    * Demonstrates the use of the MapView. It is recommended to use the SDK map
    * fragment instead of the mapview
@@ -181,6 +191,9 @@ public class MapViewFragment extends Fragment
   @Override
   public void onLocationUpdated(MeridianLocation location) {
     sendEvent("onLocationUpdated", null);
+    if (mapView != null) {
+      mapView.invalidate();
+    }
   }
 
   @Override
@@ -272,6 +285,7 @@ public class MapViewFragment extends Fragment
 
           // Refresh the UI to make the callout appear immediately
           mapView.invalidate();
+          mapView.requestLayout();
 
           Log.d("MapViewFragment", "Forcibly showing callout for marker");
         } catch (Exception calloutEx) {
@@ -361,6 +375,7 @@ public class MapViewFragment extends Fragment
     // Handle any exclusions
     // The SearchActivity.createIntent method expects an EditorKey object, which is
     // what Application.APP_KEY is
+    sendEvent("onSearchActivityStarted", null);
     Intent i = SearchActivity.createIntent(getActivity(), Application.APP_KEY,
         destination == null ? null : destination.getSearchExclusions());
     i.putExtra(PENDING_DESTINATION_KEY, destination);
@@ -391,6 +406,7 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestComplete(DirectionsResponse response) {
             if (mapView != null) {
               mapView.onDirectionsRequestComplete(response);
+              sendEvent("onDirectionsRequestComplete", null);
             }
           }
 
@@ -398,6 +414,7 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestError(final Throwable th) {
             if (mapView != null) {
               mapView.onDirectionsRequestError(th);
+              sendEvent("onDirectionsRequestError", null);
             }
           }
 
@@ -405,12 +422,14 @@ public class MapViewFragment extends Fragment
           public void onDirectionsRequestCanceled() {
             if (mapView != null) {
               mapView.onDirectionsRequestCanceled();
+              sendEvent("onDirectionsRequestCanceled", null);
             }
           }
         })
         .setTransportType(TransportType.WALKING)
         .setSource(source).build();
     directions.calculate();
+    sendEvent("onDirectionsCalculated", null);
   }
 
   @Override
@@ -438,16 +457,33 @@ public class MapViewFragment extends Fragment
    * Send an event to React Native via the JS bridge.
    * Mirrors the pattern from MeridianMapViewManager.kt.
    */
+
   private void sendEvent(String eventName,
       @androidx.annotation.Nullable com.facebook.react.bridge.WritableMap params) {
     try {
-      // themedContext is typically available from the parent or passed in
-      com.facebook.react.bridge.ReactContext reactContext = (com.facebook.react.bridge.ReactContext) getContext();
-      int viewId = getId();
-      reactContext.getJSModule(com.facebook.react.uimanager.events.RCTEventEmitter.class)
-          .receiveEvent(viewId, eventName, params);
+      if (themedReactContext != null) {
+        int viewId = getId();
+        themedReactContext.getJSModule(com.facebook.react.uimanager.events.RCTEventEmitter.class)
+            .receiveEvent(viewId, eventName, params);
+      } else {
+        Log.e("MapViewFragment", "ThemedReactContext is null. Cannot send event.");
+      }
     } catch (Exception e) {
       Log.e("MapViewFragment", "Error sending event to React Native: " + e.getMessage());
+    }
+  }
+
+  // Method to be called from MeridianMapViewManager to trigger a native update
+  public void performNativeUpdate() {
+    if (mapView != null) {
+      try {
+        Log.d("MapViewFragment", "Performing native update (invalidate)");
+        mapView.invalidate();
+      } catch (Exception e) {
+        Log.e("MapViewFragment", "Error during performNativeUpdate: " + e.getMessage(), e);
+      }
+    } else {
+      Log.w("MapViewFragment", "performNativeUpdate called but mapView is null");
     }
   }
 

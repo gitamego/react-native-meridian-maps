@@ -1,5 +1,9 @@
 import { NativeModules, Platform } from 'react-native';
-import MeridianMapView from './MeridianMapView';
+import MeridianMapView, {
+  type MeridianMapViewComponentRef,
+} from './MeridianMapView'; // Import component as default, and type
+
+// const LINKING_ERROR = ... (rest of the file remains the same until the exports section)
 
 const LINKING_ERROR =
   `The package 'react-native-meridian-maps' doesn't seem to be linked. Make sure: \n\n` +
@@ -19,6 +23,9 @@ const MeridianMaps = NativeModules.MeridianMaps
       }
     );
 
+// Optional: If you want a default export as well, you can keep or add:
+// export default MeridianMapView;
+
 // Add interface for TypeScript support
 export interface MeridianMapsInterface {
   openMap(appId?: string, mapId?: string): Promise<string>;
@@ -29,3 +36,4 @@ export interface MeridianMapsInterface {
 const MeridianMapsModule = MeridianMaps as MeridianMapsInterface;
 
 export { MeridianMapView, MeridianMapsModule as MeridianMaps };
+export type { MeridianMapViewComponentRef }; // Correctly export the type

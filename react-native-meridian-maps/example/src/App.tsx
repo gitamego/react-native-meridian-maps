@@ -1,22 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
   Text,
   View,
-  Button,
   NativeModules,
   Platform,
   UIManager,
   Alert,
 } from 'react-native';
-import { MeridianMapView } from 'react-native-meridian-maps';
+import {
+  MeridianMapView,
+  type MeridianMapViewComponentRef,
+} from 'react-native-meridian-maps';
+import debounce from 'lodash/debounce';
 
 export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
-  const [showMap, setShowMap] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-
+  const [activeKey, setActiveKey] = useState('');
+  const mapViewRef = useRef<MeridianMapViewComponentRef>(null);
   // Handle map errors
   const handleMapError = (event: any) => {
     const errorMsg = event.nativeEvent?.error || 'Unknown map error';
@@ -57,37 +60,123 @@ export default function App() {
     }
   };
 
-  // Check availability on startup
   useEffect(() => {
     checkAvailability();
   }, []);
 
-  // Toggle map visibility
-  const toggleMap = () => {
-    setShowMap(!showMap);
-    if (mapError) {
-      setMapError(null);
+  const [height, setHeight] = useState(500);
+
+  const rerenderMap = () => setHeight((prev) => (prev == 500 ? 500.5 : 500));
+
+  useEffect(() => {
+    if (activeKey === 'mapTransformChange') {
+      setTimeout(() => {
+        rerenderMap();
+      }, 800);
+      return;
     }
-  };
+    setTimeout(() => {
+      rerenderMap();
+    }, 100);
+  }, [activeKey]);
 
   const handleLocationUpdate = (location: any) => {
+    setActiveKey('locationUpdate');
     console.log('Location updated:', location);
   };
 
   const handleMarkerSelect = (marker: any) => {
+    setActiveKey('markerSelect');
     console.log('Marker selected:', marker);
   };
 
   const handleMarkerDeselect = (marker: any) => {
+    setActiveKey('markerDeselect');
     console.log('Marker deselected:', marker);
   };
 
   const handleMapLoadStart = () => {
+    setActiveKey('mapLoadStart');
     console.log('Map load start');
   };
 
+  const handleOnDirectionsCalculated = () => {
+    setActiveKey('onDirectionsCalculated');
+    console.log('On directions calculated');
+  };
+  const handleCalloutClick = () => {
+    setActiveKey('calloutClick');
+    console.log('Callout click');
+  };
+  const handleError = () => {
+    setActiveKey('error');
+    console.log('Error');
+  };
   const handleMapLoadFinish = () => {
+    setActiveKey('mapLoadFinish');
     console.log('Map load finish');
+  };
+  const handleMapTransformChange = debounce(() => {
+    setActiveKey('mapTransformChange');
+    console.log('Map transform change');
+  }, 50);
+  const handleDirectionsClosed = () => {
+    setActiveKey('directionsClosed');
+    console.log('Directions closed');
+  };
+  const handleDirectionsStart = () => {
+    setActiveKey('directionsStart');
+    console.log('Directions start');
+  };
+  const handleDirectionsError = () => {
+    setActiveKey('directionsError');
+    console.log('Directions error');
+  };
+  const handleRouteStepIndexChange = () => {
+    setActiveKey('routeStepIndexChange');
+    console.log('Route step index change');
+  };
+  const handleDirectionsReroute = () => {
+    setActiveKey('directionsReroute');
+    console.log('Directions reroute');
+  };
+  const handleOrientationUpdated = () => {
+    setActiveKey('orientationUpdated');
+    console.log('Orientation updated');
+  };
+  const handleUseAccessiblePathsChange = () => {
+    setActiveKey('useAccessiblePathsChange');
+    console.log('Use accessible paths change');
+  };
+
+  const handleMarkerForSelectedMarker = () => {
+    setActiveKey('markerForSelectedMarker');
+    console.log('Marker for selected marker');
+  };
+
+  const handleDirectionsClick = () => {
+    setActiveKey('directionsClick');
+    console.log('Directions click');
+  };
+
+  const handleDirectionsRequestComplete = () => {
+    setActiveKey('directionsRequestComplete');
+    console.log('Directions request complete');
+  };
+
+  const handleDirectionsRequestError = () => {
+    setActiveKey('directionsRequestError');
+    console.log('Directions request error');
+  };
+
+  const handleDirectionsRequestCanceled = () => {
+    setActiveKey('directionsRequestCanceled');
+    console.log('Directions request canceled');
+  };
+
+  const handleSearchActivityStarted = () => {
+    setActiveKey('searchActivityStarted');
+    console.log('Search activity started');
   };
 
   return (
@@ -100,12 +189,14 @@ export default function App() {
           <Text style={styles.infoText}>{debugInfo}</Text>
         </View>
 
-        <View style={[styles.mapContainer]}>
+        <View style={[styles.mapContainer, { height }]}>
+          {/* <View style={[styles.mapContainer]} key={activeKey}> */}
           <Text style={styles.mapLabel}>Meridian Map</Text>
           {mapError ? (
             <Text style={styles.errorText}>Error: {mapError}</Text>
           ) : (
             <MeridianMapView
+              ref={mapViewRef}
               style={styles.map}
               settings={{
                 appKey: '5809862863224832',
@@ -118,16 +209,25 @@ export default function App() {
               onMarkerSelect={handleMarkerSelect}
               onMapLoadStart={handleMapLoadStart}
               onMapLoadFinish={handleMapLoadFinish}
+              markerForSelectedMarker={handleMarkerForSelectedMarker}
+              onCalloutClick={handleCalloutClick}
+              onMapTransformChange={handleMapTransformChange}
+              onError={handleError}
+              onDirectionsClick={handleDirectionsClick}
+              onDirectionsClosed={handleDirectionsClosed}
+              onDirectionsStart={handleDirectionsStart}
+              onDirectionsError={handleDirectionsError}
+              onRouteStepIndexChange={handleRouteStepIndexChange}
+              onDirectionsReroute={handleDirectionsReroute}
+              onOrientationUpdated={handleOrientationUpdated}
+              onUseAccessiblePathsChange={handleUseAccessiblePathsChange}
+              onSearchActivityStarted={handleSearchActivityStarted}
+              onDirectionsCalculated={handleOnDirectionsCalculated}
+              onDirectionsRequestComplete={handleDirectionsRequestComplete}
+              onDirectionsRequestError={handleDirectionsRequestError}
+              onDirectionsRequestCanceled={handleDirectionsRequestCanceled}
             />
           )}
-        </View>
-        {/* Buttons */}
-        <View style={styles.buttonRow}>
-          <Button title="Check Availability" onPress={checkAvailability} />
-          <Button
-            title={showMap ? 'Hide Map' : 'Show Map'}
-            onPress={toggleMap}
-          />
         </View>
       </View>
     </SafeAreaView>

@@ -24,6 +24,9 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
     companion object {
         private const val TAG = "MeridianMapViewManager"
         private const val REACT_CLASS = "MeridianMapView"
+        // Command ID for triggering a native update
+        private const val COMMAND_TRIGGER_UPDATE = 1
+        private const val COMMAND_TRIGGER_UPDATE_NAME = "triggerUpdate"
     }
 
     override fun getName(): String = REACT_CLASS
@@ -66,8 +69,42 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
             "onMapLoadFinish" to mapOf("registrationName" to "onMapLoadFinish"),
             "onMapLoadFail" to mapOf("registrationName" to "onMapLoadFail"),
             "onMarkerSelect" to mapOf("registrationName" to "onMarkerSelect"),
-            "onLocationUpdate" to mapOf("registrationName" to "onLocationUpdate")
+            "onLocationUpdate" to mapOf("registrationName" to "onLocationUpdate"),
+            "onLocationUpdated" to mapOf("registrationName" to "onLocationUpdated"),
+            "onMapTransformChange" to mapOf("registrationName" to "onMapTransformChange"),
+            "onMapRenderFinish" to mapOf("registrationName" to "onMapRenderFinish"),
+            "onDirectionsClick" to mapOf("registrationName" to "onDirectionsClick"),
+            "onDirectionsStart" to mapOf("registrationName" to "onDirectionsStart"),
+            "onDirectionsClosed" to mapOf("registrationName" to "onDirectionsClosed"),
+            "onSearchActivityStarted" to mapOf("registrationName" to "onSearchActivityStarted"),
+            "onRouteStepIndexChange" to mapOf("registrationName" to "onRouteStepIndexChange"),
+            "onDirectionsCalculated" to mapOf("registrationName" to "onDirectionsCalculated"),
+            "onDirectionsRequestComplete" to mapOf("registrationName" to "onDirectionsRequestComplete"),
+            "onDirectionsRequestError" to mapOf("registrationName" to "onDirectionsRequestError"),
+            "onDirectionsRequestCanceled" to mapOf("registrationName" to "onDirectionsRequestCanceled"),
+            "onMarkerDeselect" to mapOf("registrationName" to "onMarkerDeselect"),
+            "onCalloutClick" to mapOf("registrationName" to "onCalloutClick"),
+            "markerForPlacemark" to mapOf("registrationName" to "markerForPlacemark"),
+            "markerForSelectedMarker" to mapOf("registrationName" to "markerForSelectedMarker"),
         )
+    }
+
+    override fun getCommandsMap(): Map<String, Int>? {
+        return MapBuilder.of(
+            COMMAND_TRIGGER_UPDATE_NAME, COMMAND_TRIGGER_UPDATE
+        )
+    }
+
+    override fun receiveCommand(
+        root: MeridianMapContainerView,
+        commandId: Int,
+        args: com.facebook.react.bridge.ReadableArray?
+    ) {
+        Log.d(TAG, "Received command: $commandId")
+        when (commandId) {
+            COMMAND_TRIGGER_UPDATE -> root.performNativeMapUpdate()
+            else -> Log.w(TAG, "Received unknown command: $commandId")
+        }
     }
 }
 
@@ -162,6 +199,7 @@ class MeridianMapContainerView(
                     putString("MAP_KEY", mapId)
                     putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
                 }
+                setThemedReactContext(themedContext)
             }
 
             // Add the fragment to this view
@@ -179,6 +217,10 @@ class MeridianMapContainerView(
             }
             sendEvent("onMapLoadFail", errorEvent)
         }
+    }
+
+    fun performNativeMapUpdate() {
+        mapFragment?.performNativeUpdate()
     }
 
     /**
