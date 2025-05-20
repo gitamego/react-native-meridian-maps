@@ -32,8 +32,6 @@ public class Application extends android.app.Application {
 
   @Override
   public void onCreate() {
-    // Configure Meridian
-    Meridian.configure(this, EDITOR_TOKEN);
 
     // Example of setting the Sample App for the EU server
     // Meridian.getShared().setDomainRegion(Meridian.DomainRegion.DomainRegionEU);

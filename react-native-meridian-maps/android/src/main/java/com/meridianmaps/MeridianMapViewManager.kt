@@ -15,6 +15,8 @@ import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
 
+import com.arubanetworks.meridian.Meridian
+
 /**
  * React Native view manager for Meridian Maps that creates and manages MapViewFragment instances
  */
@@ -36,43 +38,38 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
         return MeridianMapContainerView(context, reactContext)
     }
 
-    @ReactProp(name = "settings")
-    fun setSettings(view: MeridianMapContainerView, settings: ReadableMap?) {
-        if (settings != null) {
-            Log.d(TAG, "Updating settings: $settings")
-            
-            // Extract and update settings
-            var settingsChanged = false
-            
-            if (settings.hasKey("appKey")) {
-                val newAppId = settings.getString("appKey")
-                if (newAppId != view.appId) {
-                    view.appId = newAppId
-                    settingsChanged = true
-                }
-            }
-
-            if (settings.hasKey("mapKey")) {
-                val newMapId = settings.getString("mapKey")
-                if (newMapId != view.mapId) {
-                    view.mapId = newMapId
-                    settingsChanged = true
-                }
-            }
-
-            if (settings.hasKey("showLocationUpdates")) {
-                val showLocation = settings.getBoolean("showLocationUpdates")
-                if (showLocation != view.locationUpdatesEnabled) {
-                    view.locationUpdatesEnabled = showLocation
-                    settingsChanged = true
-                }
-            }
-
-            // Only update the map if settings actually changed
-            if (settingsChanged) {
-                view.updateMapIfReady()
-            }
+    @ReactProp(name = "appId")
+    fun setAppId(view: MeridianMapContainerView, appId: String?) {
+        if (appId != null && appId != view.appId) {
+            view.appId = appId
+            view.updateMapIfReady()
+        }
     }
+
+    @ReactProp(name = "mapId")
+    fun setMapId(view: MeridianMapContainerView, mapId: String?) {
+        if (mapId != null && mapId != view.mapId) {
+            view.mapId = mapId
+            view.updateMapIfReady()
+        }
+    }
+
+    @ReactProp(name = "showLocationUpdates", defaultBoolean = true)
+    fun setShowLocationUpdates(view: MeridianMapContainerView, show: Boolean) {
+        if (show != view.locationUpdatesEnabled) {
+            view.locationUpdatesEnabled = show
+            view.updateMapIfReady()
+        }
+    }
+
+    @ReactProp(name = "appToken")
+    fun setAppToken(view: MeridianMapContainerView, token: String?) {
+        if (token != null && token != view.appToken) {
+            view.appToken = token
+            view.updateMapIfReady()
+        }
+    }
+
 
     override fun onDropViewInstance(view: MeridianMapContainerView) {
         Log.d(TAG, "Dropping view instance")
@@ -142,17 +139,71 @@ class MeridianMapContainerView(
     }
 
     // Map configuration
-    var appId: String? = null
-    var mapId: String? = null
-    var locationUpdatesEnabled: Boolean = true
+    private var _appId: String? = null
+    var appId: String?
+        get() = _appId
+        set(value) {
+            if (_appId != value) {
+                _appId = value
+                // Update map when appId changes
+                updateMapIfReady()
+            }
+        }
+
+    private var _appToken: String? = null
+    var appToken: String?
+        get() = _appToken
+        set(value) {
+            if (_appToken != value) {
+                _appToken = value
+                // Initialize SDK when token is set
+                value?.let { initializeSdk(it) }
+            }
+        }
+
+    private var _mapId: String? = null
+    var mapId: String?
+        get() = _mapId
+        set(value) {
+            if (_mapId != value) {
+                _mapId = value
+                // Update map when mapId changes
+                updateMapIfReady()
+            }
+        }
+
+    private var _locationUpdatesEnabled: Boolean = true
+    var locationUpdatesEnabled: Boolean
+        get() = _locationUpdatesEnabled
+        set(value) {
+            if (_locationUpdatesEnabled != value) {
+                _locationUpdatesEnabled = value
+                // Update map when location updates setting changes
+                updateMapIfReady()
+            }
+        }
 
     // Fragment reference
     private var mapFragment: MapViewFragment? = null
 
     init {
-        Log.d(TAG, "🔄 Initializing MeridianMapContainerView")
+        Log.d(TAG, "Initializing MeridianMapContainerView")
         // Set up the container - match parent dimensions
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+    }
+
+    /**
+     * Initialize the Meridian SDK with the provided token
+     */
+    private fun initializeSdk(token: String) {
+        try {
+            Log.d(TAG, "Initializing Meridian SDK with token")
+            val context = context.applicationContext
+            Meridian.configure(context, token)
+            Log.d(TAG, "Meridian SDK initialized successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize Meridian SDK: ${e.message}", e)
+        }
     }
 
     /**
@@ -160,8 +211,12 @@ class MeridianMapContainerView(
      */
     fun updateMapIfReady() {
         if (!appId.isNullOrEmpty() && !mapId.isNullOrEmpty()) {
-            Log.d(TAG, "🔄 Configuration ready, will create map when attached to window")
-            // We will create the map in onAttachedToWindow to ensure proper view lifecycle
+            Log.d(TAG, "Configuration ready, appId: $appId, mapId: $mapId")
+            if (isAttachedToWindow) {
+                createMapFragment()
+            }
+        } else {
+            Log.d(TAG, "Configuration not ready - missing appId or mapId")
         }
     }
 
@@ -170,8 +225,7 @@ class MeridianMapContainerView(
      */
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        Log.d(TAG, "✅ View attached to window, creating map")
-        createMapFragment()
+        updateMapIfReady()
     }
 
     /**

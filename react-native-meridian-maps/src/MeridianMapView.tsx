@@ -40,12 +40,12 @@ const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. 
 
 type MeridianMapViewProps = {
   style?: ViewStyle;
-  settings?: {
-    showLocationUpdates?: boolean;
-    appId?: string;
-    mapId?: string;
-    appToken?: string;
-  };
+  // Direct props
+  appId: string;
+  mapId: string;
+  appToken: string;
+  showLocationUpdates?: boolean;
+  // Event handlers
   onMapLoadStart?: () => void;
   onMapLoadFinish?: () => void;
   onMapLoadFail?: (error: any) => void;
@@ -132,24 +132,21 @@ export const MeridianMapView = forwardRef<
     }
   };
 
-  // Validate required settings
+  // Validate required props
   useEffect(() => {
-    const appId = props.settings?.appId;
-    const mapId = props.settings?.mapId;
-
-    if (!appId) {
-      setHasError(
-        'Missing appId. Please provide it either as a direct prop or in the settings object.'
-      );
+    if (!props.appId) {
+      setHasError('Missing required prop: appId');
       return;
     }
-    if (!mapId) {
-      setHasError(
-        'Missing mapId. Please provide it either as a direct prop or in the settings object.'
-      );
+    if (!props.mapId) {
+      setHasError('Missing required prop: mapId');
       return;
     }
-  }, [props.appId, props.mapId, props.settings?.appId, props.settings?.mapId]);
+    if (!props.appToken) {
+      setHasError('Missing required prop: appToken');
+      return;
+    }
+  }, [props.appId, props.mapId, props.appToken]);
 
   // Set up event handlers
   useEffect(() => {
@@ -355,11 +352,11 @@ export const MeridianMapView = forwardRef<
           ref={nativeMapRef}
           {...props}
           style={combinedStyle}
-          // Pass settings as direct props (preferred) or fall back to settings object
-          appId={props.settings?.appId}
-          mapId={props.settings?.mapId}
-          appToken={props.settings?.appToken}
-          showLocationUpdates={props.settings?.showLocationUpdates ?? true}
+          // Pass direct props
+          appId={props.appId}
+          mapId={props.mapId}
+          appToken={props.appToken}
+          showLocationUpdates={props.showLocationUpdates ?? true}
         />
       ) : (
         <View
