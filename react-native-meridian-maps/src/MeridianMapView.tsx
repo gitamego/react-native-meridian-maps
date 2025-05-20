@@ -40,13 +40,6 @@ const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. 
 
 type MeridianMapViewProps = {
   style?: ViewStyle;
-  // Direct props for the native module
-  appId?: string;
-  mapId?: string;
-  appToken?: string;
-  showLocationUpdates?: boolean;
-
-  // Settings object (deprecated, kept for backward compatibility)
   settings?: {
     showLocationUpdates?: boolean;
     appId?: string;
@@ -141,8 +134,8 @@ export const MeridianMapView = forwardRef<
 
   // Validate required settings
   useEffect(() => {
-    const appId = props.appId || props.settings?.appId;
-    const mapId = props.mapId || props.settings?.mapId;
+    const appId = props.settings?.appId;
+    const mapId = props.settings?.mapId;
 
     if (!appId) {
       setHasError(
