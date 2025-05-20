@@ -34,18 +34,6 @@ class MeridianApplication : Application() {
 
         private const val TAG = "MeridianApplication"
 
-        // Editor token to authenticate with Meridian services
-        // NOTE: This token may be expired. You should replace it with a valid token from your Meridian account.
-        const val EDITOR_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
-
-        // App ID for Meridian services
-        const val APP_ID = "5809862863224832"
-
-        // Map ID for the default map
-        const val MAP_ID = "5668600916475904"
-
-        // EditorKey objects used by the Meridian SDK
-
         // Track the SDK initialization status
         private var isSdkInitialized = false
 
@@ -70,9 +58,6 @@ class MeridianApplication : Application() {
                     isSdkInitialized = true
                     return true
                 }
-
-                // Initialize the SDK
-                Meridian.configure(context, EDITOR_TOKEN)
 
                 // Verify initialization
                 val shared = Meridian.getShared()

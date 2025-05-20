@@ -13,9 +13,6 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
 
     companion object {
         private const val TAG = "MeridianMapsModule"
-        private const val EDITOR_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
-        private const val DEFAULT_APP_ID = "5809862863224832"
-        private const val DEFAULT_MAP_ID = "5668600916475904"
     }
 
     init {
@@ -43,16 +40,6 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                 // Use application context to ensure lifecycle independence
                 val appContext = reactContext.applicationContext
                 Log.d(TAG, "Using app context: $appContext")
-
-                try {
-                    Log.d(TAG, "Calling Meridian.configure()")
-                    Meridian.configure(appContext, EDITOR_TOKEN)
-                    Log.d(TAG, "Meridian.configure() call completed")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in Meridian.configure(): ${e.javaClass.simpleName}: ${e.message}", e)
-                    showToast("SDK init error: ${e.message}")
-                    return false
-                }
 
                 val isInitialized = Meridian.getShared() != null
                 Log.d(TAG, "SDK initialized: $isInitialized")
@@ -137,18 +124,10 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
                     // Create intent to open the map activity
                     val intent = Intent(reactContext, MeridianMapActivity::class.java)
 
-                    // Use provided app and map IDs or defaults if null
-                    val finalAppId = appId ?: DEFAULT_APP_ID
-                    val finalMapId = mapId ?: DEFAULT_MAP_ID
-
-                    // Pass app and map IDs to the activity
-                    intent.putExtra("APP_KEY", finalAppId)
-                    intent.putExtra("MAP_KEY", finalMapId)
-
                     // Set flags to start a new task
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 
-                    Log.d(TAG, "Starting MeridianMapActivity with APP_KEY=$finalAppId, MAP_KEY=$finalMapId")
+                    Log.d(TAG, "Starting MeridianMapActivity")
 
                     // Start the activity
                     reactContext.startActivity(intent)
