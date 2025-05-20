@@ -40,6 +40,13 @@ const LINKING_ERROR = `The package 'MeridianMapView' doesn't seem to be linked. 
 
 type MeridianMapViewProps = {
   style?: ViewStyle;
+  // Direct props for the native module
+  appId?: string;
+  mapId?: string;
+  appToken?: string;
+  showLocationUpdates?: boolean;
+
+  // Settings object (deprecated, kept for backward compatibility)
   settings?: {
     showLocationUpdates?: boolean;
     appId?: string;
@@ -134,16 +141,22 @@ export const MeridianMapView = forwardRef<
 
   // Validate required settings
   useEffect(() => {
-    if (!props.settings?.appId) {
-      setHasError('Missing appId in settings');
-      console.error('MeridianMapView requires an appId in settings');
-    }
+    const appId = props.appId || props.settings?.appId;
+    const mapId = props.mapId || props.settings?.mapId;
 
-    if (!props.settings?.mapId) {
-      setHasError('Missing mapId in settings');
-      console.error('MeridianMapView requires a mapId in settings');
+    if (!appId) {
+      setHasError(
+        'Missing appId. Please provide it either as a direct prop or in the settings object.'
+      );
+      return;
     }
-  }, [props.settings]);
+    if (!mapId) {
+      setHasError(
+        'Missing mapId. Please provide it either as a direct prop or in the settings object.'
+      );
+      return;
+    }
+  }, [props.appId, props.mapId, props.settings?.appId, props.settings?.mapId]);
 
   // Set up event handlers
   useEffect(() => {
@@ -349,10 +362,11 @@ export const MeridianMapView = forwardRef<
           ref={nativeMapRef}
           {...props}
           style={combinedStyle}
-          settings={{
-            showLocationUpdates: true,
-            ...props.settings,
-          }}
+          // Pass settings as direct props (preferred) or fall back to settings object
+          appId={props.settings?.appId}
+          mapId={props.settings?.mapId}
+          appToken={props.settings?.appToken}
+          showLocationUpdates={props.settings?.showLocationUpdates ?? true}
         />
       ) : (
         <View

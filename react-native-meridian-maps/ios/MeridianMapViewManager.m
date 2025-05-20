@@ -5,12 +5,16 @@
 #import <React/RCTUIManager.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 // For NSString methods
 #import <Foundation/Foundation.h>
 
 @interface MeridianMapContainerView () {
   NSString *_appToken;
+  NSString *_appId;
+  NSString *_mapId;
+  BOOL _isMapInitialized;
 }
 
 @property(nonatomic, assign) BOOL isMapInitialized;
@@ -21,8 +25,15 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
+    NSLog(@"[MeridianMapView] Initializing MeridianMapContainerView");
     self.backgroundColor = [UIColor lightGrayColor];
     _isMapInitialized = NO;
+    _appId = nil;
+    _mapId = nil;
+    _appToken = nil;
+    
+    // Debug: Log the initialization
+    NSLog(@"[MeridianMapView] Frame: %@", NSStringFromCGRect(frame));
   }
   return self;
 }
@@ -37,6 +48,7 @@
 }
 
 - (void)setAppId:(NSString *)appId {
+  NSLog(@"[MeridianMapView] setAppId:dddddd %@", appId);
   if (![_appId isEqualToString:appId]) {
     _appId = [appId copy];
     [self updateMapIfNeeded];
@@ -44,6 +56,7 @@
 }
 
 - (void)setMapId:(NSString *)mapId {
+  NSLog(@"[MeridianMapView] setMapId:dsdsdsds %@", mapId);
   if (![_mapId isEqualToString:mapId]) {
     _mapId = [mapId copy];
     [self updateMapIfNeeded];
@@ -51,6 +64,7 @@
 }
 
 - (void)setAppToken:(NSString *)appToken {
+  NSLog(@"[MeridianMapView] setAppToken:asdfasdf %@", [appToken substringToIndex:MIN(10, appToken.length)] ?: @"(nil)");
   if (![_appToken isEqualToString:appToken]) {
     _appToken = [appToken copy];
     [self updateMapIfNeeded];
@@ -60,12 +74,16 @@
 - (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
   if (_showLocationUpdates != showLocationUpdates) {
     _showLocationUpdates = showLocationUpdates;
-    [self updateLocationUpdates];
+//    [self updateLocationUpdates];
   }
 }
 
 - (void)setupMap {
+  NSLog(@"[MeridianMapView] setupMap called with appId: %@, mapId: %@, token: %@", self.appId, self.mapId,
+        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)");
+
   if (self.mapViewController) {
+    NSLog(@"[MeridianMapView] Map view controller already exists, skipping setup");
     return;
   }
   [self layoutSubviews];
@@ -105,18 +123,27 @@
   // self.isMapInitialized = YES;
 }
 
-- (void)updateLocationUpdates {
-  if (!self.mapViewController)
+// - (void)updateLocationUpdates {
+//   if (!self.mapViewController)
+//     return;
 
-  if (self.showLocationUpdates) {
-    //    [self.mapViewController.locationManager startUpdatingLocation];
-  } else {
-    //    [self.mapViewController.locationManager stopUpdatingLocation];
-  }
-}
+//   if (self.showLocationUpdates) {
+//     // [self.mapViewController.locationManager startUpdatingLocation];
+//   } else {
+//     // [self.mapViewController.locationManager stopUpdatingLocation];
+//   }
+// }
 
 - (void)updateMapIfNeeded {
+  NSLog(@"[MeridianMapView] updateMapIfNeeded - appId: %@, mapId: %@, token: %@, isInitialized: %d, hasMapVC: %d", 
+        self.appId, 
+        self.mapId, 
+        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)", 
+        self.isMapInitialized,
+        self.mapViewController != nil);
+        
   if (self.appId && self.mapId && self.appToken && !self.isMapInitialized) {
+    NSLog(@"[MeridianMapView] All required properties set, calling setupMap");
     [self setupMap];
   }
 }
@@ -138,7 +165,7 @@
       [self addSubview:mapViewController.view];
 
       // Update location updates based on current setting
-      //  [self updateLocationUpdates];
+      // [self updateLocationUpdates];
 
       // Trigger loading event
       if (self.onMapLoadStart) {
@@ -164,6 +191,7 @@
 RCT_EXPORT_MODULE(MeridianMapView)
 
 RCT_EXPORT_VIEW_PROPERTY(appId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(appToken, NSString)
 RCT_EXPORT_VIEW_PROPERTY(mapId, NSString)
 RCT_EXPORT_VIEW_PROPERTY(showLocationUpdates, BOOL)
 
