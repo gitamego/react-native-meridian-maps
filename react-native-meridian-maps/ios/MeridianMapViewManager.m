@@ -107,7 +107,6 @@
 
 - (void)updateLocationUpdates {
   if (!self.mapViewController)
-    return;
 
   if (self.showLocationUpdates) {
     //    [self.mapViewController.locationManager startUpdatingLocation];
