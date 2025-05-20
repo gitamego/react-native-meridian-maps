@@ -39,21 +39,39 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
     @ReactProp(name = "settings")
     fun setSettings(view: MeridianMapContainerView, settings: ReadableMap?) {
         if (settings != null) {
-            // Extract appKey and mapKey from settings
+            Log.d(TAG, "Updating settings: $settings")
+            
+            // Extract and update settings
+            var settingsChanged = false
+            
             if (settings.hasKey("appKey")) {
-                view.appId = settings.getString("appKey")
+                val newAppId = settings.getString("appKey")
+                if (newAppId != view.appId) {
+                    view.appId = newAppId
+                    settingsChanged = true
+                }
             }
 
             if (settings.hasKey("mapKey")) {
-                view.mapId = settings.getString("mapKey")
+                val newMapId = settings.getString("mapKey")
+                if (newMapId != view.mapId) {
+                    view.mapId = newMapId
+                    settingsChanged = true
+                }
             }
 
             if (settings.hasKey("showLocationUpdates")) {
-                view.locationUpdatesEnabled = settings.getBoolean("showLocationUpdates")
+                val showLocation = settings.getBoolean("showLocationUpdates")
+                if (showLocation != view.locationUpdatesEnabled) {
+                    view.locationUpdatesEnabled = showLocation
+                    settingsChanged = true
+                }
             }
 
-            view.updateMapIfReady()
-        }
+            // Only update the map if settings actually changed
+            if (settingsChanged) {
+                view.updateMapIfReady()
+            }
     }
 
     override fun onDropViewInstance(view: MeridianMapContainerView) {

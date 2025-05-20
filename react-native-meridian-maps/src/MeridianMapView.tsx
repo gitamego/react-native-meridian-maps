@@ -42,8 +42,9 @@ type MeridianMapViewProps = {
   style?: ViewStyle;
   settings?: {
     showLocationUpdates?: boolean;
-    appKey?: string;
-    mapKey?: string;
+    appId?: string;
+    mapId?: string;
+    appToken?: string;
   };
   onMapLoadStart?: () => void;
   onMapLoadFinish?: () => void;
@@ -70,7 +71,7 @@ type MeridianMapViewProps = {
   onError?: (error: any) => void;
 };
 
-const ComponentName = 'MeridianMapView';
+export const ComponentName = 'MeridianMapView';
 
 // Check if the native component is available
 const isComponentAvailable =
@@ -133,16 +134,22 @@ export const MeridianMapView = forwardRef<
 
   // Validate required settings
   useEffect(() => {
-    if (!props.settings?.appKey) {
-      setHasError('Missing appKey in settings');
-      console.error('MeridianMapView requires an appKey in settings');
-    }
+    const appId = props.settings?.appId;
+    const mapId = props.settings?.mapId;
 
-    if (!props.settings?.mapKey) {
-      setHasError('Missing mapKey in settings');
-      console.error('MeridianMapView requires a mapKey in settings');
+    if (!appId) {
+      setHasError(
+        'Missing appId. Please provide it either as a direct prop or in the settings object.'
+      );
+      return;
     }
-  }, [props.settings]);
+    if (!mapId) {
+      setHasError(
+        'Missing mapId. Please provide it either as a direct prop or in the settings object.'
+      );
+      return;
+    }
+  }, [props.appId, props.mapId, props.settings?.appId, props.settings?.mapId]);
 
   // Set up event handlers
   useEffect(() => {
@@ -266,17 +273,7 @@ export const MeridianMapView = forwardRef<
       console.error('Error setting up event listeners:', e);
       return () => {}; // Return empty cleanup function to handle all code paths
     }
-  }, [
-    nativeMapRef.current,
-    isComponentAvailable,
-    props.onMapLoadStart,
-    props.onMapLoadFinish,
-    props.onMapLoadFail,
-    props.onLocationUpdated,
-    props.onMarkerSelect,
-    props.onMarkerDeselect,
-    props.onError,
-  ]); // Fix dependency array
+  }, [nativeMapRef.current, isComponentAvailable, props]);
 
   // Expose triggerUpdate method via ref
   useImperativeHandle(ref, () => ({
@@ -358,10 +355,11 @@ export const MeridianMapView = forwardRef<
           ref={nativeMapRef}
           {...props}
           style={combinedStyle}
-          settings={{
-            showLocationUpdates: true,
-            ...props.settings,
-          }}
+          // Pass settings as direct props (preferred) or fall back to settings object
+          appId={props.settings?.appId}
+          mapId={props.settings?.mapId}
+          appToken={props.settings?.appToken}
+          showLocationUpdates={props.settings?.showLocationUpdates ?? true}
         />
       ) : (
         <View
@@ -451,6 +449,8 @@ export const isAvailable = async (): Promise<boolean> => {
     console.log(
       `MeridianMaps module available: ${moduleAvailable ? 'YES' : 'NO'}`
     );
+
+    if (Platform.OS === 'ios') return componentAvailable;
 
     // As a fallback, try the isModuleAvailable method if it exists
     let sdkAvailable = false;

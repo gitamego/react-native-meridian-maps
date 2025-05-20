@@ -14,6 +14,7 @@ import {
   type MeridianMapViewComponentRef,
 } from 'react-native-meridian-maps';
 import debounce from 'lodash/debounce';
+import { ComponentName } from '../../src/MeridianMapView';
 
 export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
@@ -33,7 +34,10 @@ export default function App() {
     try {
       // Check native modules
       const modules = Object.keys(NativeModules);
-      const hasModule = modules.includes('MeridianMaps');
+      const hasModule =
+        Platform.OS === 'ios'
+          ? modules.includes(ComponentName)
+          : modules.includes('MeridianMaps');
 
       // Check view manager
       let viewManagerInfo = 'ViewManager: ';
@@ -199,9 +203,11 @@ export default function App() {
               ref={mapViewRef}
               style={styles.map}
               settings={{
-                appKey: '5809862863224832',
-                mapKey: '5668600916475904',
+                appId: '5809862863224832',
+                mapId: '5668600916475904',
                 showLocationUpdates: true,
+                appToken:
+                  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk',
               }}
               onMapLoadFail={handleMapError}
               onLocationUpdated={handleLocationUpdate}

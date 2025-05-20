@@ -1,23 +1,44 @@
 #import "MeridianMapViewManager.h"
-#import <React/RCTUIManager.h>
-#import <React/RCTLog.h>
-#import <objc/runtime.h>
-#import <UIKit/UIKit.h>
-#import <Meridian/Meridian.h>
 #import "MMHost.h"
+#import <Meridian/Meridian.h>
+#import <React/RCTLog.h>
+#import <React/RCTUIManager.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+#import <CoreGraphics/CoreGraphics.h>
+
+// For NSString methods
+#import <Foundation/Foundation.h>
+
+@interface MeridianMapContainerView () {
+  NSString *_appToken;
+  NSString *_appId;
+  NSString *_mapId;
+  BOOL _isMapInitialized;
+}
+
+@property(nonatomic, assign) BOOL isMapInitialized;
+
+@end
 
 @implementation MeridianMapContainerView
 
-- (instancetype)initWithFrame:(CGRect)frame
-{
+- (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
+    NSLog(@"[MeridianMapView] Initializing MeridianMapContainerView");
     self.backgroundColor = [UIColor lightGrayColor];
+    _isMapInitialized = NO;
+    _appId = nil;
+    _mapId = nil;
+    _appToken = nil;
+    
+    // Debug: Log the initialization
+    NSLog(@"[MeridianMapView] Frame: %@", NSStringFromCGRect(frame));
   }
   return self;
 }
 
-- (void)layoutSubviews
-{
+- (void)layoutSubviews {
   [super layoutSubviews];
 
   // Make sure the map view is properly sized
@@ -26,8 +47,108 @@
   }
 }
 
-- (void)setMapViewController:(MRMapViewController *)mapViewController
-{
+- (void)setAppId:(NSString *)appId {
+  NSLog(@"[MeridianMapView] setAppId:dddddd %@", appId);
+  if (![_appId isEqualToString:appId]) {
+    _appId = [appId copy];
+    [self updateMapIfNeeded];
+  }
+}
+
+- (void)setMapId:(NSString *)mapId {
+  NSLog(@"[MeridianMapView] setMapId:dsdsdsds %@", mapId);
+  if (![_mapId isEqualToString:mapId]) {
+    _mapId = [mapId copy];
+    [self updateMapIfNeeded];
+  }
+}
+
+- (void)setAppToken:(NSString *)appToken {
+  NSLog(@"[MeridianMapView] setAppToken:asdfasdf %@", [appToken substringToIndex:MIN(10, appToken.length)] ?: @"(nil)");
+  if (![_appToken isEqualToString:appToken]) {
+    _appToken = [appToken copy];
+    [self updateMapIfNeeded];
+  }
+}
+
+- (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
+  if (_showLocationUpdates != showLocationUpdates) {
+    _showLocationUpdates = showLocationUpdates;
+//    [self updateLocationUpdates];
+  }
+}
+
+- (void)setupMap {
+  NSLog(@"[MeridianMapView] setupMap called with appId: %@, mapId: %@, token: %@", self.appId, self.mapId,
+        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)");
+
+  if (self.mapViewController) {
+    NSLog(@"[MeridianMapView] Map view controller already exists, skipping setup");
+    return;
+  }
+  [self layoutSubviews];
+
+  // Configure the Meridian SDK
+  MRConfig *config = [MRConfig new];
+  [config domainConfig].domainRegion = MRDomainRegionDefault;
+  config.applicationToken = self.appToken ?: [MMHost applicationToken];
+
+  // Must be called once, in application:didFinishLaunching
+  [Meridian configure:config];
+
+  // Set up navigation bar appearance
+  UINavigationBarAppearance *appearance =
+      [[UINavigationBarAppearance alloc] init];
+  [appearance configureWithOpaqueBackground];
+  [appearance setBackgroundColor:[UIColor colorWithRed:0.1395
+                                                 green:0.8678
+                                                  blue:0.7167
+                                                 alpha:1.0]];
+  appearance.titleTextAttributes =
+      @{NSForegroundColorAttributeName : [UIColor whiteColor]};
+  [[UINavigationBar appearance] setStandardAppearance:appearance];
+  [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
+  [UINavigationBar appearance].tintColor = [UIColor whiteColor];
+  [[UITextField
+      appearanceWhenContainedInInstancesOfClasses:@[ UISearchBar.class ]]
+      setTintColor:[[UIView alloc] init].tintColor];
+
+  // Create the map view controller
+  MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
+  MRMapViewController *mapViewController =
+      [[MRMapViewController alloc] initWithEditorKey:mapId];
+
+  // Assign it to our container
+  self.mapViewController = mapViewController;
+  // self.isMapInitialized = YES;
+}
+
+// - (void)updateLocationUpdates {
+//   if (!self.mapViewController)
+//     return;
+
+//   if (self.showLocationUpdates) {
+//     // [self.mapViewController.locationManager startUpdatingLocation];
+//   } else {
+//     // [self.mapViewController.locationManager stopUpdatingLocation];
+//   }
+// }
+
+- (void)updateMapIfNeeded {
+  NSLog(@"[MeridianMapView] updateMapIfNeeded - appId: %@, mapId: %@, token: %@, isInitialized: %d, hasMapVC: %d", 
+        self.appId, 
+        self.mapId, 
+        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)", 
+        self.isMapInitialized,
+        self.mapViewController != nil);
+        
+  if (self.appId && self.mapId && self.appToken && !self.isMapInitialized) {
+    NSLog(@"[MeridianMapView] All required properties set, calling setupMap");
+    [self setupMap];
+  }
+}
+
+- (void)setMapViewController:(MRMapViewController *)mapViewController {
   if (_mapViewController != mapViewController) {
     // Remove old map view if it exists
     if (_mapViewController) {
@@ -39,8 +160,12 @@
     if (mapViewController) {
       // Add the new map view
       mapViewController.view.frame = self.bounds;
-      mapViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+      mapViewController.view.autoresizingMask =
+          UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
       [self addSubview:mapViewController.view];
+
+      // Update location updates based on current setting
+      // [self updateLocationUpdates];
 
       // Trigger loading event
       if (self.onMapLoadStart) {
@@ -48,11 +173,13 @@
       }
 
       // Set up success/failure handling
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (self.onMapLoadFinish) {
-          self.onMapLoadFinish(@{});
-        }
-      });
+      dispatch_after(
+          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+          dispatch_get_main_queue(), ^{
+            if (self.onMapLoadFinish) {
+              self.onMapLoadFinish(@{});
+            }
+          });
     }
   }
 }
@@ -63,44 +190,14 @@
 
 RCT_EXPORT_MODULE(MeridianMapView)
 
-- (UIView *)view
-{
+RCT_EXPORT_VIEW_PROPERTY(appId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(appToken, NSString)
+RCT_EXPORT_VIEW_PROPERTY(mapId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(showLocationUpdates, BOOL)
 
-  // configure the Meridian SDK
-  MRConfig *config = [MRConfig new];
-
-  // If samples are to be run via Default/US servers, use these values
-  [config domainConfig].domainRegion = MRDomainRegionDefault;
-  config.applicationToken = [MMHost applicationToken];
-
-  // If samples are to be run via EU servers, use these values instead
-  // [config domainConfig].domainRegion = MRDomainRegionEU;
-  // config.applicationToken = @"50b4558f8fbfd96e26e122785e61b1589e1a13a5";
-
-  // must be called once, in application:didFinishLaunching
-  [Meridian configure:config];
-
-  UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
-  [appearance configureWithOpaqueBackground];
-  [appearance setBackgroundColor:[UIColor colorWithRed:0.1395 green:0.8678 blue:0.7167 alpha:1.0]];
-  appearance.titleTextAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    [UIColor whiteColor], NSForegroundColorAttributeName, nil];
-  [[UINavigationBar appearance] setStandardAppearance:appearance];
-  [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
-
-  // set our default appearance to be a green color matching our app icon (this has nothing to do with Meridian)
-  [UINavigationBar appearance].tintColor = [UIColor whiteColor];
-  [[UITextField appearanceWhenContainedInInstancesOfClasses:@[UISearchBar.class]] setTintColor:[[UIView alloc] init].tintColor];
-
-  MeridianMapContainerView *containerView = [[MeridianMapContainerView alloc] init];
-
-  // Create the map view controller
-  MREditorKey *mapKey = [MREditorKey keyForMap:[MMHost mapID] app:[MMHost appID]];
-  MRMapViewController *mapViewController = [[MRMapViewController alloc] initWithEditorKey:mapKey];
-
-  // Assign it to our container
-  containerView.mapViewController = mapViewController;
-
+- (UIView *)view {
+  MeridianMapContainerView *containerView =
+      [[MeridianMapContainerView alloc] init];
   return containerView;
 }
 
