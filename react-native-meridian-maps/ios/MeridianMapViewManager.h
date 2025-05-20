@@ -18,6 +18,7 @@
 // Settings
 @property (nonatomic, copy) NSString *appId;
 @property (nonatomic, copy) NSString *mapId;
+@property (nonatomic, copy) NSString *appToken;
 @property (nonatomic, assign) BOOL showLocationUpdates;
 
 @end

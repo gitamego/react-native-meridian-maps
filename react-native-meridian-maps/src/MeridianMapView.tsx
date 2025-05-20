@@ -44,6 +44,7 @@ type MeridianMapViewProps = {
     showLocationUpdates?: boolean;
     appId?: string;
     mapId?: string;
+    appToken?: string;
   };
   onMapLoadStart?: () => void;
   onMapLoadFinish?: () => void;
