@@ -203,8 +203,8 @@ export default function App() {
               ref={mapViewRef}
               style={styles.map}
               settings={{
-                appKey: '5809862863224832',
-                mapKey: '5668600916475904',
+                appId: '5809862863224832',
+                mapId: '5668600916475904',
                 showLocationUpdates: true,
               }}
               onMapLoadFail={handleMapError}

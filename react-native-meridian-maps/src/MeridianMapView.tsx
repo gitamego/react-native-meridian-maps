@@ -42,8 +42,8 @@ type MeridianMapViewProps = {
   style?: ViewStyle;
   settings?: {
     showLocationUpdates?: boolean;
-    appKey?: string;
-    mapKey?: string;
+    appId?: string;
+    mapId?: string;
   };
   onMapLoadStart?: () => void;
   onMapLoadFinish?: () => void;
@@ -133,14 +133,14 @@ export const MeridianMapView = forwardRef<
 
   // Validate required settings
   useEffect(() => {
-    if (!props.settings?.appKey) {
-      setHasError('Missing appKey in settings');
-      console.error('MeridianMapView requires an appKey in settings');
+    if (!props.settings?.appId) {
+      setHasError('Missing appId in settings');
+      console.error('MeridianMapView requires an appId in settings');
     }
 
-    if (!props.settings?.mapKey) {
-      setHasError('Missing mapKey in settings');
-      console.error('MeridianMapView requires a mapKey in settings');
+    if (!props.settings?.mapId) {
+      setHasError('Missing mapId in settings');
+      console.error('MeridianMapView requires a mapId in settings');
     }
   }, [props.settings]);
 

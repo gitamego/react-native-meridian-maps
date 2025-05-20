@@ -6,12 +6,19 @@
 #import <Meridian/Meridian.h>
 #import "MMHost.h"
 
+@interface MeridianMapContainerView()
+
+@property (nonatomic, assign) BOOL isMapInitialized;
+
+@end
+
 @implementation MeridianMapContainerView
 
 - (instancetype)initWithFrame:(CGRect)frame
 {
   if (self = [super initWithFrame:frame]) {
     self.backgroundColor = [UIColor lightGrayColor];
+    _isMapInitialized = NO;
   }
   return self;
 }
@@ -23,6 +30,73 @@
   // Make sure the map view is properly sized
   if (self.mapViewController) {
     self.mapViewController.view.frame = self.bounds;
+  }
+}
+
+- (void)setAppId:(NSString *)appId {
+  if (_appId != appId && ![_appId isEqualToString:appId]) {
+    _appId = [appId copy];
+  }
+}
+
+- (void)setMapId:(NSString *)mapId {
+  if (_mapId != mapId && ![_mapId isEqualToString:mapId]) {
+    _mapId = [mapId copy];
+  }
+}
+
+- (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
+  if (_showLocationUpdates != showLocationUpdates) {
+    _showLocationUpdates = showLocationUpdates;
+  }
+}
+
+- (void)setupMap {
+  if (self.mapViewController) {
+    return;
+  }
+  [self layoutSubviews];
+
+  // Configure the Meridian SDK
+  MRConfig *config = [MRConfig new];
+  [config domainConfig].domainRegion = MRDomainRegionDefault;
+  config.applicationToken = [MMHost applicationToken];
+
+  // Must be called once, in application:didFinishLaunching
+  [Meridian configure:config];
+
+  // Set up navigation bar appearance
+  UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+  [appearance configureWithOpaqueBackground];
+  [appearance setBackgroundColor:[UIColor colorWithRed:0.1395 green:0.8678 blue:0.7167 alpha:1.0]];
+  appearance.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor whiteColor]};
+  [[UINavigationBar appearance] setStandardAppearance:appearance];
+  [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
+  [UINavigationBar appearance].tintColor = [UIColor whiteColor];
+  [[UITextField appearanceWhenContainedInInstancesOfClasses:@[UISearchBar.class]] setTintColor:[[UIView alloc] init].tintColor];
+
+  // Create the map view controller
+  MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
+  MRMapViewController *mapViewController = [[MRMapViewController alloc] initWithEditorKey:mapId];
+
+  // Assign it to our container
+  self.mapViewController = mapViewController;
+  // self.isMapInitialized = YES;
+}
+
+- (void)updateLocationUpdates {
+  if (!self.mapViewController) return;
+
+  if (self.showLocationUpdates) {
+//    [self.mapViewController.locationManager startUpdatingLocation];
+  } else {
+//    [self.mapViewController.locationManager stopUpdatingLocation];
+  }
+}
+
+- (void)updateMapIfNeeded {
+  if (self.appId && self.mapId && !self.isMapInitialized) {
+    [self setupMap];
   }
 }
 
@@ -41,6 +115,9 @@
       mapViewController.view.frame = self.bounds;
       mapViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
       [self addSubview:mapViewController.view];
+
+      // Update location updates based on current setting
+    //  [self updateLocationUpdates];
 
       // Trigger loading event
       if (self.onMapLoadStart) {
@@ -63,44 +140,13 @@
 
 RCT_EXPORT_MODULE(MeridianMapView)
 
+RCT_EXPORT_VIEW_PROPERTY(appId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(mapId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(showLocationUpdates, BOOL)
+
 - (UIView *)view
 {
-
-  // configure the Meridian SDK
-  MRConfig *config = [MRConfig new];
-
-  // If samples are to be run via Default/US servers, use these values
-  [config domainConfig].domainRegion = MRDomainRegionDefault;
-  config.applicationToken = [MMHost applicationToken];
-
-  // If samples are to be run via EU servers, use these values instead
-  // [config domainConfig].domainRegion = MRDomainRegionEU;
-  // config.applicationToken = @"50b4558f8fbfd96e26e122785e61b1589e1a13a5";
-
-  // must be called once, in application:didFinishLaunching
-  [Meridian configure:config];
-
-  UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
-  [appearance configureWithOpaqueBackground];
-  [appearance setBackgroundColor:[UIColor colorWithRed:0.1395 green:0.8678 blue:0.7167 alpha:1.0]];
-  appearance.titleTextAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    [UIColor whiteColor], NSForegroundColorAttributeName, nil];
-  [[UINavigationBar appearance] setStandardAppearance:appearance];
-  [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
-
-  // set our default appearance to be a green color matching our app icon (this has nothing to do with Meridian)
-  [UINavigationBar appearance].tintColor = [UIColor whiteColor];
-  [[UITextField appearanceWhenContainedInInstancesOfClasses:@[UISearchBar.class]] setTintColor:[[UIView alloc] init].tintColor];
-
   MeridianMapContainerView *containerView = [[MeridianMapContainerView alloc] init];
-
-  // Create the map view controller
-  MREditorKey *mapKey = [MREditorKey keyForMap:[MMHost mapID] app:[MMHost appID]];
-  MRMapViewController *mapViewController = [[MRMapViewController alloc] initWithEditorKey:mapKey];
-
-  // Assign it to our container
-  containerView.mapViewController = mapViewController;
-
   return containerView;
 }
 
