@@ -70,7 +70,7 @@ type MeridianMapViewProps = {
   onError?: (error: any) => void;
 };
 
-const ComponentName = 'MeridianMapView';
+export const ComponentName = 'MeridianMapView';
 
 // Check if the native component is available
 const isComponentAvailable =
@@ -266,17 +266,7 @@ export const MeridianMapView = forwardRef<
       console.error('Error setting up event listeners:', e);
       return () => {}; // Return empty cleanup function to handle all code paths
     }
-  }, [
-    nativeMapRef.current,
-    isComponentAvailable,
-    props.onMapLoadStart,
-    props.onMapLoadFinish,
-    props.onMapLoadFail,
-    props.onLocationUpdated,
-    props.onMarkerSelect,
-    props.onMarkerDeselect,
-    props.onError,
-  ]); // Fix dependency array
+  }, [nativeMapRef.current, isComponentAvailable, props]);
 
   // Expose triggerUpdate method via ref
   useImperativeHandle(ref, () => ({
@@ -451,6 +441,8 @@ export const isAvailable = async (): Promise<boolean> => {
     console.log(
       `MeridianMaps module available: ${moduleAvailable ? 'YES' : 'NO'}`
     );
+
+    if (Platform.OS === 'ios') return componentAvailable;
 
     // As a fallback, try the isModuleAvailable method if it exists
     let sdkAvailable = false;

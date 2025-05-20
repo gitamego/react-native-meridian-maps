@@ -14,6 +14,7 @@ import {
   type MeridianMapViewComponentRef,
 } from 'react-native-meridian-maps';
 import debounce from 'lodash/debounce';
+import { ComponentName } from '../../src/MeridianMapView';
 
 export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
@@ -33,7 +34,10 @@ export default function App() {
     try {
       // Check native modules
       const modules = Object.keys(NativeModules);
-      const hasModule = modules.includes('MeridianMaps');
+      const hasModule =
+        Platform.OS === 'ios'
+          ? modules.includes(ComponentName)
+          : modules.includes('MeridianMaps');
 
       // Check view manager
       let viewManagerInfo = 'ViewManager: ';
