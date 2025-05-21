@@ -34,9 +34,6 @@
     _appId = nil;
     _mapId = nil;
     _appToken = nil;
-
-    // Debug: Log the initialization
-    NSLog(@"[MeridianMapView] Frame: %@", NSStringFromCGRect(frame));
   }
   return self;
 }
@@ -63,6 +60,7 @@
   if (![_mapId isEqualToString:mapId]) {
     _mapId = [mapId copy];
     [self updateMapIfNeeded];
+
   }
 }
 
@@ -70,11 +68,11 @@
   NSLog(@"[MeridianMapView] setAppToken:asdfasdf %@",
         [appToken substringToIndex:MIN(10, appToken.length)] ?: @"(nil)");
   if (![_appToken isEqualToString:appToken]) {
-    _appToken = [appToken copy];
     [self updateMapIfNeeded];
+    MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+    [emitter emitCustomEvent:MMEventMarkerSelect body:@{@"message": @"app token has been set"}];
+    _appToken = [appToken copy];
   }
-  MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
-  [emitter emitCustomEvent:MMEventMarkerSelect body:@{@"message": @"app token has been set"}];
 }
 
 - (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
@@ -85,15 +83,7 @@
 }
 
 - (void)setupMap {
-  NSLog(
-      @"[MeridianMapView] setupMap called with appId: %@, mapId: %@, token: %@",
-      self.appId, self.mapId,
-      [self.appToken substringToIndex:MIN(10, self.appToken.length)]
-          ?: @"(nil)");
-
   if (self.mapViewController) {
-    NSLog(@"[MeridianMapView] Map view controller already exists, skipping "
-          @"setup");
     return;
   }
   [self layoutSubviews];
@@ -130,28 +120,13 @@
 
   // Assign it to our container
   self.mapViewController = mapViewController;
-  // self.isMapInitialized = YES;
+  
+  MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+  [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
+   self.isMapInitialized = YES;
 }
 
-// - (void)updateLocationUpdates {
-//   if (!self.mapViewController)
-//     return;
-
-//   if (self.showLocationUpdates) {
-//     // [self.mapViewController.locationManager startUpdatingLocation];
-//   } else {
-//     // [self.mapViewController.locationManager stopUpdatingLocation];
-//   }
-// }
-
 - (void)updateMapIfNeeded {
-  NSLog(@"[MeridianMapView] updateMapIfNeeded - appId: %@, mapId: %@, token: "
-        @"%@, isInitialized: %d, hasMapVC: %d",
-        self.appId, self.mapId,
-        [self.appToken substringToIndex:MIN(10, self.appToken.length)]
-            ?: @"(nil)",
-        self.isMapInitialized, self.mapViewController != nil);
-
   if (self.appId && self.mapId && self.appToken && !self.isMapInitialized) {
     NSLog(@"[MeridianMapView] All required properties set, calling setupMap");
     [self setupMap];
