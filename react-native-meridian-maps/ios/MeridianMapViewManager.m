@@ -1,5 +1,7 @@
 #import "MeridianMapViewManager.h"
 #import "MMHost.h"
+#import "MMEventEmitter.h"
+#import "MMEventNames.h"
 #import <CoreGraphics/CoreGraphics.h>
 #import <Meridian/Meridian.h>
 #import <React/RCTLog.h>
@@ -18,11 +20,12 @@
 }
 
 @property(nonatomic, assign) BOOL isMapInitialized;
+@property(nonatomic, weak) RCTBridge *bridge;
 
 @end
 
 @implementation MeridianMapContainerView
-
+  
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
     NSLog(@"[MeridianMapView] Initializing MeridianMapContainerView");
@@ -70,6 +73,8 @@
     _appToken = [appToken copy];
     [self updateMapIfNeeded];
   }
+  MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+  [emitter emitCustomEvent:MMEventMarkerSelect body:@{@"message": @"app token has been set"}];
 }
 
 - (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
@@ -186,6 +191,7 @@
             }
           });
     }
+    
   }
 }
 
@@ -276,6 +282,7 @@ RCT_EXPORT_VIEW_PROPERTY(showLocationUpdates, BOOL)
 - (UIView *)view {
   MeridianMapContainerView *containerView =
       [[MeridianMapContainerView alloc] init];
+  containerView.bridge = self.bridge;
   return containerView;
 }
 
