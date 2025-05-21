@@ -1,16 +1,16 @@
 #import "MeridianMapViewManager.h"
 #import "MMHost.h"
+#import <CoreGraphics/CoreGraphics.h>
 #import <Meridian/Meridian.h>
 #import <React/RCTLog.h>
 #import <React/RCTUIManager.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <CoreGraphics/CoreGraphics.h>
 
 // For NSString methods
 #import <Foundation/Foundation.h>
 
-@interface MeridianMapContainerView () {
+@interface MeridianMapContainerView () <MRMapViewDelegate> {
   NSString *_appToken;
   NSString *_appId;
   NSString *_mapId;
@@ -31,7 +31,7 @@
     _appId = nil;
     _mapId = nil;
     _appToken = nil;
-    
+
     // Debug: Log the initialization
     NSLog(@"[MeridianMapView] Frame: %@", NSStringFromCGRect(frame));
   }
@@ -64,7 +64,8 @@
 }
 
 - (void)setAppToken:(NSString *)appToken {
-  NSLog(@"[MeridianMapView] setAppToken:asdfasdf %@", [appToken substringToIndex:MIN(10, appToken.length)] ?: @"(nil)");
+  NSLog(@"[MeridianMapView] setAppToken:asdfasdf %@",
+        [appToken substringToIndex:MIN(10, appToken.length)] ?: @"(nil)");
   if (![_appToken isEqualToString:appToken]) {
     _appToken = [appToken copy];
     [self updateMapIfNeeded];
@@ -74,16 +75,20 @@
 - (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
   if (_showLocationUpdates != showLocationUpdates) {
     _showLocationUpdates = showLocationUpdates;
-//    [self updateLocationUpdates];
+    //    [self updateLocationUpdates];
   }
 }
 
 - (void)setupMap {
-  NSLog(@"[MeridianMapView] setupMap called with appId: %@, mapId: %@, token: %@", self.appId, self.mapId,
-        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)");
+  NSLog(
+      @"[MeridianMapView] setupMap called with appId: %@, mapId: %@, token: %@",
+      self.appId, self.mapId,
+      [self.appToken substringToIndex:MIN(10, self.appToken.length)]
+          ?: @"(nil)");
 
   if (self.mapViewController) {
-    NSLog(@"[MeridianMapView] Map view controller already exists, skipping setup");
+    NSLog(@"[MeridianMapView] Map view controller already exists, skipping "
+          @"setup");
     return;
   }
   [self layoutSubviews];
@@ -135,13 +140,13 @@
 // }
 
 - (void)updateMapIfNeeded {
-  NSLog(@"[MeridianMapView] updateMapIfNeeded - appId: %@, mapId: %@, token: %@, isInitialized: %d, hasMapVC: %d", 
-        self.appId, 
-        self.mapId, 
-        [self.appToken substringToIndex:MIN(10, self.appToken.length)] ?: @"(nil)", 
-        self.isMapInitialized,
-        self.mapViewController != nil);
-        
+  NSLog(@"[MeridianMapView] updateMapIfNeeded - appId: %@, mapId: %@, token: "
+        @"%@, isInitialized: %d, hasMapVC: %d",
+        self.appId, self.mapId,
+        [self.appToken substringToIndex:MIN(10, self.appToken.length)]
+            ?: @"(nil)",
+        self.isMapInitialized, self.mapViewController != nil);
+
   if (self.appId && self.mapId && self.appToken && !self.isMapInitialized) {
     NSLog(@"[MeridianMapView] All required properties set, calling setupMap");
     [self setupMap];
@@ -183,6 +188,79 @@
     }
   }
 }
+
+- (void)mapPickerDidPickMap:(nonnull MRMap *)map { 
+  NSLog(@"mapPickerDidPickMap");
+}
+
+- (void)encodeWithCoder:(nonnull NSCoder *)coder { 
+  NSLog(@"encodeWithCoder");
+}
+
+//+ (nonnull instancetype)appearance { 
+//  NSLog(@"appearance");
+//}
+//
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait { 
+//  NSLog(@"appearanceForTraitCollection");
+//}
+//
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... { 
+//  NSLog(@"appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass");
+//}
+//
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes { 
+//  NSLog(@"nonnull UITraitCollection *)trait whenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer");
+//}
+//
+//+ (nonnull instancetype)appearanceWhenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... { 
+//  NSLog(@"appearanceWhenContainedIn");
+//
+//}
+//
+//+ (nonnull instancetype)appearanceWhenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes { 
+//  NSLog(@"appearanceWhenContainedInInstancesOfClasses");
+//}
+
+- (void)traitCollectionDidChange:(nullable UITraitCollection *)previousTraitCollection { 
+  NSLog(@"traitCollectionDidChange");
+}
+
+//- (CGPoint)convertPoint:(CGPoint)point fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//  NSLog(@"appearanceForTraitCollection");
+//}
+//
+//- (CGPoint)convertPoint:(CGPoint)point toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//  NSLog(@"appearanceForTraitCollection");
+//}
+//
+//- (CGRect)convertRect:(CGRect)rect fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//  NSLog(@"appearanceForTraitCollection");
+//}
+//
+//- (CGRect)convertRect:(CGRect)rect toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//  NSLog(@"appearanceForTraitCollection");
+//}
+
+- (void)didUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context withAnimationCoordinator:(nonnull UIFocusAnimationCoordinator *)coordinator { 
+  NSLog(@"didUpdateFocusInContext");
+}
+
+- (void)setNeedsFocusUpdate { 
+  NSLog(@"setNeedsFocusUpdate");
+}
+
+//- (BOOL)shouldUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context { 
+//  NSLog(@"shouldUpdateFocusInContext");
+//}
+
+- (void)updateFocusIfNeeded { 
+  NSLog(@"updateFocusIfNeeded");
+}
+
+//- (nonnull NSArray<id<UIFocusItem>> *)focusItemsInRect:(CGRect)rect { 
+//  NSLog(@"focusItemsInRect");
+//}
 
 @end
 

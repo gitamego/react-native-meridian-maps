@@ -158,7 +158,10 @@ export const MeridianMapView = forwardRef<
       console.log('MeridianMapView node handle ID:', nodeId);
 
       // Listen for events from native side
-      const eventEmitter = new NativeEventEmitter(NativeModules.MeridianMaps);
+      const eventEmitter =
+        Platform.OS === 'ios'
+          ? new NativeEventEmitter(NativeModules.MMEventEmitter)
+          : new NativeEventEmitter(NativeModules.MeridianMaps);
 
       // Map event listeners
       const subscriptions = [
