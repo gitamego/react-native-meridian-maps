@@ -116,10 +116,7 @@
   MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
   CustomMapViewController *mapViewController =
       [[CustomMapViewController alloc] initWithEditorKey:mapId];
-  
-  // Assign it to our container
   self.mapViewController = mapViewController;
-//  self.mapViewController.delegate = self;
   
   MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
   [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
@@ -260,15 +257,16 @@
 
     // Create a placemark key using the provided placemark ID and the current map's key
     MREditorKey *placemarkKey = [MREditorKey keyForPlacemark:placemarkID map:self.mapViewController.mapView.mapKey];
-  
+    
     // Initialize a directions request
     MRDirectionsRequest *request = [MRDirectionsRequest new];
+    request.app = [MREditorKey keyWithIdentifier:self.appId];
+    request.destination = [MRDirectionsDestination destinationWithPlacemarkKey:placemarkKey];
     request.source = [MRDirectionsSource sourceWithCurrentLocation];
-    request.destination = [MRDirectionsDestination destinationWithMapKey:placemarkKey.parent withPoint:*(CGPoint*) ""];
 
     // Create a directions object with the request
-    MRDirections *directions = [[MRDirections alloc] initWithRequest:request presentingViewController:self.mapViewController.view];
-
+    MRDirections *directions = [[MRDirections alloc] initWithRequest:request presentingViewController:self.mapViewController];
+  
     // Calculate directions asynchronously
     [directions calculateDirectionsWithCompletionHandler:^(MRDirectionsResponse *response, NSError *error) {
         if (error) {
@@ -277,14 +275,21 @@
         }
 
         if (response.routes.count > 0) {
-            MRRoute *route = response.routes.firstObject;
-            [self.mapViewController.mapView setRoute:route animated:YES];
+//            dispatch_async(dispatch_get_main_queue(), ^{
+              MRRoute *route = response.routes.firstObject;
+              MRMapView *mapView = self.mapViewController.mapView;
+              [mapView setShowsDirectionsControl: YES];
+              [mapView setShowsOverviewButton: YES];
+              [mapView deselectAnnotationAnimated:NO];
+              [mapView setRoute:route animated:YES];
+//              }
+//            );
+           
         } else {
             NSLog(@"No routes found.");
         }
     }];
 }
-
 //- (nonnull NSArray<id<UIFocusItem>> *)focusItemsInRect:(CGRect)rect {
 //  NSLog(@"focusItemsInRect");
 //}
@@ -312,4 +317,19 @@ RCT_EXPORT_VIEW_PROPERTY(onMapLoadFinish, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onMapLoadFail, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onLocationUpdated, RCTDirectEventBlock)
 
+
+/**
+  custom methods
+ */
+RCT_EXPORT_METHOD(startRouteToPlacemark:(nonnull NSNumber *)reactTag placemarkID:(NSString *)placemarkID)
+{
+  [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+    MeridianMapContainerView *view = (MeridianMapContainerView *)viewRegistry[reactTag];
+    if (!view || ![view isKindOfClass:[MeridianMapContainerView class]]) {
+      RCTLogError(@"Cannot find MeridianMapContainerView with tag #%@", reactTag);
+      return;
+    }
+    [view startRouteToPlacemarkWithID:placemarkID];
+  }];
+}
 @end
