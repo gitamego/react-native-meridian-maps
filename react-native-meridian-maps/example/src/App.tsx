@@ -8,6 +8,7 @@ import {
   Platform,
   UIManager,
   Alert,
+  Button,
 } from 'react-native';
 import {
   MeridianMapView,
@@ -183,6 +184,11 @@ export default function App() {
     console.log('Search activity started');
   };
 
+  const handleStartRoute = () => {
+    const placemarkID = '5668600916475904_5709068098338816'; // Replace with actual placemark ID
+    mapViewRef.current?.startRoute(placemarkID);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.scrollContent}>
@@ -192,6 +198,8 @@ export default function App() {
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>{debugInfo}</Text>
         </View>
+
+        <Button title="Route to Casio" onPress={handleStartRoute} />
 
         <View style={[styles.mapContainer, { height }]}>
           {/* <View style={[styles.mapContainer]} key={activeKey}> */}
