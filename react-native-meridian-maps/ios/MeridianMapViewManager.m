@@ -2,6 +2,7 @@
 #import "MMHost.h"
 #import "MMEventEmitter.h"
 #import "MMEventNames.h"
+#import "CustomMapViewController.h"
 #import <CoreGraphics/CoreGraphics.h>
 #import <Meridian/Meridian.h>
 #import <React/RCTLog.h>
@@ -25,7 +26,7 @@
 @end
 
 @implementation MeridianMapContainerView
-  
+
 - (instancetype)initWithFrame:(CGRect)frame {
   if (self = [super initWithFrame:frame]) {
     NSLog(@"[MeridianMapView] Initializing MeridianMapContainerView");
@@ -92,8 +93,6 @@
   MRConfig *config = [MRConfig new];
   [config domainConfig].domainRegion = MRDomainRegionDefault;
   config.applicationToken = self.appToken ?: [MMHost applicationToken];
-
-  // Must be called once, in application:didFinishLaunching
   [Meridian configure:config];
 
   // Set up navigation bar appearance
@@ -115,11 +114,12 @@
 
   // Create the map view controller
   MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
-  MRMapViewController *mapViewController =
-      [[MRMapViewController alloc] initWithEditorKey:mapId];
-
+  CustomMapViewController *mapViewController =
+      [[CustomMapViewController alloc] initWithEditorKey:mapId];
+  
   // Assign it to our container
   self.mapViewController = mapViewController;
+//  self.mapViewController.delegate = self;
   
   MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
   [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
@@ -133,7 +133,7 @@
   }
 }
 
-- (void)setMapViewController:(MRMapViewController *)mapViewController {
+- (void)setMapViewController:(CustomMapViewController *)mapViewController {
   if (_mapViewController != mapViewController) {
     // Remove old map view if it exists
     if (_mapViewController) {
@@ -166,80 +166,126 @@
             }
           });
     }
-    
+
   }
 }
 
-- (void)mapPickerDidPickMap:(nonnull MRMap *)map { 
+- (void)mapView:(MRMapView *)mapView didSelectAnnotationView:(MRAnnotationView *)view {
+    id<MRAnnotation> annotation = view.annotation;
+    if (![annotation isKindOfClass:[MRPlacemark class]]) {
+        return;
+    }
+    MRPlacemark *placemark = (MRPlacemark *)annotation;
+    NSString *placemarkID = placemark.key.identifier;
+    NSLog(@"Selected placemark ID: %@", placemarkID);
+    // Additional handling code here
+}
+
+- (void)mapPickerDidPickMap:(nonnull MRMap *)map {
   NSLog(@"mapPickerDidPickMap");
 }
 
-- (void)encodeWithCoder:(nonnull NSCoder *)coder { 
+- (void)encodeWithCoder:(nonnull NSCoder *)coder {
   NSLog(@"encodeWithCoder");
 }
 
-//+ (nonnull instancetype)appearance { 
+//+ (nonnull instancetype)appearance {
 //  NSLog(@"appearance");
 //}
 //
-//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait { 
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait {
 //  NSLog(@"appearanceForTraitCollection");
 //}
 //
-//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... { 
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... {
 //  NSLog(@"appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass");
 //}
 //
-//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes { 
+//+ (nonnull instancetype)appearanceForTraitCollection:(nonnull UITraitCollection *)trait whenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes {
 //  NSLog(@"nonnull UITraitCollection *)trait whenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer");
 //}
 //
-//+ (nonnull instancetype)appearanceWhenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... { 
+//+ (nonnull instancetype)appearanceWhenContainedIn:(nullable Class<UIAppearanceContainer>)ContainerClass, ... {
 //  NSLog(@"appearanceWhenContainedIn");
 //
 //}
 //
-//+ (nonnull instancetype)appearanceWhenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes { 
+//+ (nonnull instancetype)appearanceWhenContainedInInstancesOfClasses:(nonnull NSArray<Class<UIAppearanceContainer>> *)containerTypes {
 //  NSLog(@"appearanceWhenContainedInInstancesOfClasses");
 //}
 
-- (void)traitCollectionDidChange:(nullable UITraitCollection *)previousTraitCollection { 
+- (void)traitCollectionDidChange:(nullable UITraitCollection *)previousTraitCollection {
   NSLog(@"traitCollectionDidChange");
 }
 
-//- (CGPoint)convertPoint:(CGPoint)point fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//- (CGPoint)convertPoint:(CGPoint)point fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace {
 //  NSLog(@"appearanceForTraitCollection");
 //}
 //
-//- (CGPoint)convertPoint:(CGPoint)point toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//- (CGPoint)convertPoint:(CGPoint)point toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace {
 //  NSLog(@"appearanceForTraitCollection");
 //}
 //
-//- (CGRect)convertRect:(CGRect)rect fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//- (CGRect)convertRect:(CGRect)rect fromCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace {
 //  NSLog(@"appearanceForTraitCollection");
 //}
 //
-//- (CGRect)convertRect:(CGRect)rect toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace { 
+//- (CGRect)convertRect:(CGRect)rect toCoordinateSpace:(nonnull id<UICoordinateSpace>)coordinateSpace {
 //  NSLog(@"appearanceForTraitCollection");
 //}
 
-- (void)didUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context withAnimationCoordinator:(nonnull UIFocusAnimationCoordinator *)coordinator { 
+- (void)didUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context withAnimationCoordinator:(nonnull UIFocusAnimationCoordinator *)coordinator {
   NSLog(@"didUpdateFocusInContext");
 }
 
-- (void)setNeedsFocusUpdate { 
+- (void)setNeedsFocusUpdate {
   NSLog(@"setNeedsFocusUpdate");
 }
 
-//- (BOOL)shouldUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context { 
+//- (BOOL)shouldUpdateFocusInContext:(nonnull UIFocusUpdateContext *)context {
 //  NSLog(@"shouldUpdateFocusInContext");
 //}
 
-- (void)updateFocusIfNeeded { 
+
+- (void)updateFocusIfNeeded {
   NSLog(@"updateFocusIfNeeded");
 }
 
-//- (nonnull NSArray<id<UIFocusItem>> *)focusItemsInRect:(CGRect)rect { 
+- (void)startRouteToPlacemarkWithID:(NSString *)placemarkID {
+    // Ensure the mapView is available
+    if (!self.mapViewController.mapView) {
+        NSLog(@"Map view is not initialized.");
+        return;
+    }
+
+    // Create a placemark key using the provided placemark ID and the current map's key
+    MREditorKey *placemarkKey = [MREditorKey keyForPlacemark:placemarkID map:self.mapViewController.mapView.mapKey];
+  
+    // Initialize a directions request
+    MRDirectionsRequest *request = [MRDirectionsRequest new];
+    request.source = [MRDirectionsSource sourceWithCurrentLocation];
+    request.destination = [MRDirectionsDestination destinationWithMapKey:placemarkKey.parent withPoint:*(CGPoint*) ""];
+
+    // Create a directions object with the request
+    MRDirections *directions = [[MRDirections alloc] initWithRequest:request presentingViewController:self.mapViewController.view];
+
+    // Calculate directions asynchronously
+    [directions calculateDirectionsWithCompletionHandler:^(MRDirectionsResponse *response, NSError *error) {
+        if (error) {
+            NSLog(@"Error calculating directions: %@", error.localizedDescription);
+            return;
+        }
+
+        if (response.routes.count > 0) {
+            MRRoute *route = response.routes.firstObject;
+            [self.mapViewController.mapView setRoute:route animated:YES];
+        } else {
+            NSLog(@"No routes found.");
+        }
+    }];
+}
+
+//- (nonnull NSArray<id<UIFocusItem>> *)focusItemsInRect:(CGRect)rect {
 //  NSLog(@"focusItemsInRect");
 //}
 
