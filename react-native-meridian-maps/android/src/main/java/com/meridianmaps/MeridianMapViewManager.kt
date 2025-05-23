@@ -16,6 +16,15 @@ import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
 
 import com.arubanetworks.meridian.Meridian
+import com.arubanetworks.meridian.maps.directions.DirectionsDestination
+import com.arubanetworks.meridian.editor.EditorKey
+import com.arubanetworks.meridian.location.LocationRequest
+import com.arubanetworks.meridian.maps.directions.DirectionsSource
+import com.arubanetworks.meridian.maps.directions.Directions
+import com.arubanetworks.meridian.maps.directions.TransportType
+import com.arubanetworks.meridian.search.SearchActivity
+import com.arubanetworks.meridian.location.MeridianLocation
+import com.arubanetworks.meridian.maps.directions.DirectionsResponse
 
 /**
  * React Native view manager for Meridian Maps that creates and manages MapViewFragment instances
@@ -26,9 +35,13 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
     companion object {
         private const val TAG = "MeridianMapViewManager"
         private const val REACT_CLASS = "MeridianMapView"
-        // Command ID for triggering a native update
+        private const val PLACEMARK_PICKER_CODE = 42
+        // Command IDs
         private const val COMMAND_TRIGGER_UPDATE = 1
+        private const val COMMAND_START_ROUTE = 2
+        // Command names
         private const val COMMAND_TRIGGER_UPDATE_NAME = "triggerUpdate"
+        private const val COMMAND_START_ROUTE_NAME = "startRouteToPlacemark"
     }
 
     override fun getName(): String = REACT_CLASS
@@ -96,6 +109,7 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
             "onDirectionsCalculated" to mapOf("registrationName" to "onDirectionsCalculated"),
             "onDirectionsRequestComplete" to mapOf("registrationName" to "onDirectionsRequestComplete"),
             "onDirectionsRequestError" to mapOf("registrationName" to "onDirectionsRequestError"),
+            "onDirectionsError" to mapOf("registrationName" to "onDirectionsError"),
             "onDirectionsRequestCanceled" to mapOf("registrationName" to "onDirectionsRequestCanceled"),
             "onMarkerDeselect" to mapOf("registrationName" to "onMarkerDeselect"),
             "onCalloutClick" to mapOf("registrationName" to "onCalloutClick"),
@@ -106,7 +120,8 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
 
     override fun getCommandsMap(): Map<String, Int>? {
         return MapBuilder.of(
-            COMMAND_TRIGGER_UPDATE_NAME, COMMAND_TRIGGER_UPDATE
+            COMMAND_TRIGGER_UPDATE_NAME, COMMAND_TRIGGER_UPDATE,
+            COMMAND_START_ROUTE_NAME, COMMAND_START_ROUTE
         )
     }
 
@@ -118,6 +133,14 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
         Log.d(TAG, "Received command: $commandId")
         when (commandId) {
             COMMAND_TRIGGER_UPDATE -> root.performNativeMapUpdate()
+            COMMAND_START_ROUTE -> {
+              val placemarkId = args?.getString(0)
+              if (placemarkId != null) {
+                root.startRouteToPlacemark(placemarkId)
+              } else {
+                Log.w(TAG, "Cannot start route: missing placemark ID")
+              }
+            }
             else -> Log.w(TAG, "Received unknown command: $commandId")
         }
     }
@@ -224,7 +247,9 @@ class MeridianMapContainerView(
      * Called when the view is attached to a window - the ideal time to add the fragment
      */
     override fun onAttachedToWindow() {
+        Log.d(TAG, "View attached to window")
         super.onAttachedToWindow()
+        Log.d(TAG, "Calling updateMapIfReady")
         updateMapIfReady()
     }
 
@@ -241,6 +266,7 @@ class MeridianMapContainerView(
      * Creates and adds the map fragment to this view
      */
     private fun createMapFragment() {
+        Log.d(TAG, "createMapFragment called with appId: $appId, mapId: $mapId")
         if (appId.isNullOrEmpty() || mapId.isNullOrEmpty()) {
             Log.e(TAG, "Cannot create map: Missing appId or mapId")
             val errorEvent = Arguments.createMap().apply {
@@ -251,8 +277,10 @@ class MeridianMapContainerView(
         }
 
         // Get the current activity
+        Log.d(TAG, "Getting current activity")
         val activity = reactContext.currentActivity as? FragmentActivity
         if (activity == null) {
+            Log.e(TAG, "Activity is null, cannot create fragment")
             Log.e(TAG, "Cannot create map: Activity is null")
             val errorEvent = Arguments.createMap().apply {
                 putString("error", "No valid activity found")
@@ -264,15 +292,17 @@ class MeridianMapContainerView(
         try {
             Log.d(TAG, "Creating map fragment with appId: $appId, mapId: $mapId")
 
-            // Create the fragment
-            mapFragment = MapViewFragment().apply {
-                arguments = Bundle().apply {
-                    putString("APP_KEY", appId)
-                    putString("MAP_KEY", mapId)
-                    putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
+                // Create the fragment
+                mapFragment = MapViewFragment().apply {
+                    Log.d(TAG, "MapViewFragment instance created")
+                    arguments = Bundle().apply {
+                        putString("APP_KEY", appId)
+                        putString("MAP_KEY", mapId)
+                        putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
+                    }
+                    setThemedReactContext(themedContext)
                 }
-                setThemedReactContext(themedContext)
-            }
+                Log.d(TAG, "MapViewFragment configured")
 
             // Add the fragment to this view
             activity.supportFragmentManager.beginTransaction()
@@ -293,6 +323,63 @@ class MeridianMapContainerView(
 
     fun performNativeMapUpdate() {
         mapFragment?.performNativeUpdate()
+    }
+
+    fun startRouteToPlacemark(placemarkId: String) {
+        val activity = reactContext.currentActivity as? FragmentActivity ?: return
+
+        activity.runOnUiThread {
+            val fragment = mapFragment ?: return@runOnUiThread
+
+            val appKey = EditorKey(appId ?: return@runOnUiThread)
+            val mapKey = EditorKey.forMap(mapId ?: return@runOnUiThread, appKey.id)
+            val placemarkKey = EditorKey.forPlacemark(placemarkId, mapKey)
+
+            val destination = DirectionsDestination.forPlacemarkKey(placemarkKey)
+
+            // Attempt to get the current location
+            LocationRequest.requestCurrentLocation(activity, appKey, object : LocationRequest.LocationRequestListener {
+                override fun onResult(location: MeridianLocation) {
+                    val source = DirectionsSource.forMapPoint(location.mapKey, location.point)
+                    val directions = Directions.Builder()
+                        .setAppKey(appKey)
+                        .setSource(source)
+                        .setDestination(destination)
+                        .setTransportType(TransportType.WALKING)
+                        .setListener(object : Directions.DirectionsRequestListener {
+                            override fun onDirectionsRequestStart() {
+                                Log.d(TAG, "Directions request started.")
+                            }
+
+                            override fun onDirectionsRequestComplete(response: DirectionsResponse) {
+                                val route = response.routes.firstOrNull()
+                                if (route != null) {
+                                    fragment.setRoute(route)
+                                } else {
+                                    Log.w(TAG, "No routes found.")
+                                }
+                            }
+
+                            override fun onDirectionsRequestError(tr: Throwable) {
+                                Log.e(TAG, "Error calculating directions", tr)
+                            }
+
+                            override fun onDirectionsRequestCanceled() {
+                                Log.i(TAG, "Directions request canceled")
+                            }
+                        })
+                        .build()
+                    directions.calculate()
+                }
+
+                override fun onError(error: LocationRequest.ErrorType) {
+                    Log.e(TAG, "Error obtaining current location: $error")
+                    // Optionally, prompt user to select starting location
+                    val intent = SearchActivity.createIntent(activity, appKey)
+                    activity.startActivityForResult(intent, 42)
+                }
+            })
+        }
     }
 
     /**
@@ -327,3 +414,7 @@ class MeridianMapContainerView(
         }
     }
 }
+
+// Ensure setRoute exists on MapViewFragment
+// If not already present, you must implement it in MapViewFragment:
+// fun setRoute(route: Directions.Route) { ... }

@@ -14,6 +14,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.Arguments;
+
 import com.arubanetworks.meridian.editor.EditorKey;
 import com.arubanetworks.meridian.editor.Placemark;
 import com.arubanetworks.meridian.location.LocationRequest;
@@ -37,6 +40,19 @@ import java.util.ArrayList;
 public class MapViewFragment extends Fragment
     implements MapView.DirectionsEventListener, MapView.MapEventListener, MapView.MarkerEventListener {
 
+  private static final String TAG = "MeridianMapView";
+
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    Log.e(TAG, "=== FRAGMENT onCreate() ===");
+    if (getArguments() != null) {
+      Log.d(TAG, "Fragment arguments: " + getArguments().toString());
+    } else {
+      Log.e(TAG, "No fragment arguments!");
+    }
+  }
+
   // Store ThemedReactContext for event emission
   private com.facebook.react.uimanager.ThemedReactContext themedReactContext;
 
@@ -59,10 +75,14 @@ public class MapViewFragment extends Fragment
   private LocationRequest locationRequest;
 
   @Override
-  public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+  public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    Log.e(TAG, "=== FRAGMENT onCreateView() ===");
+    Log.e("MeridianMapView", "=== MAP VIEW FRAGMENT CREATED ===");
+    Log.d("MapViewFragment", "Creating map view");
     View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
 
     mapView = layout.findViewById(R.id.demo_mapview);
+    Log.d("MeridianMapView", "MapView found: " + (mapView != null));
 
     // Use the app key and map key defined in the Application class
     // Important: These are already EditorKey objects, not strings
@@ -91,6 +111,7 @@ public class MapViewFragment extends Fragment
      */
 
     // If you want to handle marker events
+    Log.d("MeridianMapView", "Setting marker event listener");
     mapView.setMarkerEventListener(this);
 
     // Set map options if desired
@@ -101,7 +122,9 @@ public class MapViewFragment extends Fragment
     // Set which map to load
     // It is recommended to do this after setting the map options
     // Important: MAP_KEY is already an EditorKey object, not a string
+    Log.d("MeridianMapView", "Setting map key: " + Application.MAP_KEY);
     mapView.setMapKey(Application.MAP_KEY);
+    Log.d("MeridianMapView", "Map key set, mapView ready: " + (mapView != null));
 
     // Demonstration of how to customize the mapView's locationMarker:
     // change default color for Bluetooth to orange
@@ -143,11 +166,16 @@ public class MapViewFragment extends Fragment
   //
   @Override
   public void onMapLoadStart() {
+    Log.e("MeridianMapView", "=== MAP LOAD STARTED ===");
+    Log.d("MeridianMapView", "Starting map load");
+    sendEvent("onMapLoadStart", null);
   }
 
   @Override
   public void onMapLoadFinish() {
-
+    Log.e("MeridianMapView", "=== MAP LOAD FINISHED ===");
+    Log.d("MeridianMapView", "Map loaded successfully");
+    sendEvent("onMapLoadFinish", null);
   }
 
   @Override
@@ -260,45 +288,31 @@ public class MapViewFragment extends Fragment
   //
   @Override
   public boolean onMarkerSelect(Marker marker) {
-    sendEvent("onMarkerSelect", null);
-    // Immediately showing the callout might help with the initial marker selection
-    // issue
-    if (marker instanceof ClusteredMarker) {
-      // prevent clustered markers from being selected
-      return true;
+    // Add more prominent logging
+    Log.e("jafijadsiojfaiosjd", "=== MARKER SELECT EVENT TRIGGERED ===");
+    Log.d("jafijadsiojfaiosjd", "Marker selected - ID: " + (marker != null ? marker.getId() : "null"));
+    if (marker == null) {
+      Log.e("jafijadsiojfaiosjd", "Marker is null!");
+      return false;
     }
 
-    // For all other markers - force show callout
+    // Create a simple event with just the marker ID
+    WritableMap event = Arguments.createMap();
+    event.putString("markerId", String.valueOf(marker.getId()));
+    sendEvent("onMarkerSelect", event);
+
+    // For all other markers - try to show callout
     try {
-      // Get the Placemark for the marker
+      // Get the associated placemark if needed
       Placemark placemark = mapView.getAssociatedPlacemark(marker);
       if (placemark != null) {
-        // Log marker selection and ensure callout is visible
-        Log.d("MapViewFragment", "Selected marker: " + placemark.getName());
-
-        // Force the callout to be shown immediately
-        // This is a workaround for the issue where the callout doesn't appear until
-        // rerender
-        try {
-          // If the marker has a callout, force it to show
-          marker.setShowsCallout(true);
-
-          // Refresh the UI to make the callout appear immediately
-          mapView.invalidate();
-          mapView.requestLayout();
-
-          Log.d("MapViewFragment", "Forcibly showing callout for marker");
-        } catch (Exception calloutEx) {
-          Log.e("MapViewFragment", "Error showing callout: " + calloutEx.getMessage(), calloutEx);
-        }
+        Log.d("jafijadsiojfaiosjd", "Associated placemark ID: " + placemark.getKey().getId());
       }
-
-      // Return false to also allow default handling
-      return false;
     } catch (Exception e) {
-      Log.e("MapViewFragment", "Error in onMarkerSelect: " + e.getMessage(), e);
-      return false;
+      Log.e("jafijadsiojfaiosjd", "Error handling marker selection", e);
     }
+
+    return false;
   }
 
   @Override
@@ -411,11 +425,18 @@ public class MapViewFragment extends Fragment
           }
 
           @Override
-          public void onDirectionsRequestError(final Throwable th) {
+          public void onDirectionsRequestError(Throwable tr) {
+            Log.e("MapViewFragment", "Directions request failed", tr);
             if (mapView != null) {
-              mapView.onDirectionsRequestError(th);
-              sendEvent("onDirectionsRequestError", null);
+              mapView.onDirectionsRequestError(tr);
             }
+            // Send more detailed error information
+            WritableMap errorParams = Arguments.createMap();
+            errorParams.putString("error", tr != null ? tr.getMessage() : "Unknown error");
+            if (tr != null && tr.getCause() != null) {
+              errorParams.putString("cause", tr.getCause().getMessage());
+            }
+            sendEvent("onDirectionsError", errorParams);
           }
 
           @Override
@@ -484,6 +505,41 @@ public class MapViewFragment extends Fragment
       }
     } else {
       Log.w("MapViewFragment", "performNativeUpdate called but mapView is null");
+    }
+  }
+
+  public void startDirectionsForDestination(DirectionsDestination destination) {
+    if (destination == null) {
+      Log.e("MapViewFragment", "Cannot start directions: destination is null");
+      sendEvent("onDirectionsError", null);
+      return;
+    }
+
+    Log.d("MapViewFragment", "Starting directions to destination: " + destination);
+
+    // Check if we have a valid map view
+    if (mapView == null) {
+      Log.e("MapViewFragment", "Cannot start directions: mapView is null");
+      sendEvent("onDirectionsError", null);
+      return;
+    }
+
+    // Check if we have a valid context
+    if (getContext() == null) {
+      Log.e("MapViewFragment", "Cannot start directions: context is null");
+      sendEvent("onDirectionsError", null);
+      return;
+    }
+
+    // Start the directions
+    startDirections(destination);
+  }
+
+  public void setRoute(com.arubanetworks.meridian.maps.directions.Route route) {
+    if (mapView != null) {
+        mapView.setRoute(route);
+    } else {
+        Log.w("MapViewFragment", "mapView is null. Cannot set route.");
     }
   }
 
