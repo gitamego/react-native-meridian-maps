@@ -17,11 +17,7 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
 
     init {
         Log.d(TAG, "MeridianMapsModule created")
-        try {
-            Log.d(TAG, "Module init: checking if SDK is already initialized: ${Meridian.getShared() != null}")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error checking SDK initialization status in init: ${e.javaClass.simpleName}: ${e.message}", e)
-        }
+        // Don't check SDK status in init as it might not be configured yet
     }
 
     override fun getName(): String {
@@ -35,21 +31,18 @@ class MeridianMapsModule(private val reactContext: ReactApplicationContext) :
     private fun initializeMeridianSDK(): Boolean {
         Log.d(TAG, "initializeMeridianSDK() called")
         try {
-            if (Meridian.getShared() == null) {
-                Log.d(TAG, "Initializing Meridian SDK - SDK was null")
-                // Use application context to ensure lifecycle independence
-                val appContext = reactContext.applicationContext
-                Log.d(TAG, "Using app context: $appContext")
-
-                val isInitialized = Meridian.getShared() != null
-                Log.d(TAG, "SDK initialized: $isInitialized")
-                return isInitialized
+            // Don't try to initialize the SDK here, just check if it's already initialized
+            val isInitialized = try {
+                Meridian.getShared() != null
+            } catch (e: Exception) {
+                Log.d(TAG, "SDK not yet configured: ${e.message}")
+                false
             }
-            Log.d(TAG, "SDK was already initialized")
-            return true
+            
+            Log.d(TAG, "SDK initialized: $isInitialized")
+            return isInitialized
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing Meridian SDK: ${e.javaClass.simpleName}: ${e.message}", e)
-            showToast("SDK init error: ${e.message}")
+            Log.e(TAG, "Error checking SDK status: ${e.javaClass.simpleName}: ${e.message}", e)
             return false
         }
     }

@@ -42,10 +42,11 @@ public class TriggersFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Bundle args = getArguments();
-        if (args == null || (appKey = (EditorKey) args.getSerializable(APP_KEY)) == null) {
-            Toast.makeText(getActivity(), "No EditorKey passed to Fragment!", Toast.LENGTH_LONG).show();
+        String appId = getArguments() != null ? getArguments().getString("APP_KEY") : null;
+        if (appId == null) {
+            throw new IllegalStateException("Missing APP_KEY in fragment arguments");
         }
+        appKey = EditorKey.forApp(appId);
     }
 
     @Override

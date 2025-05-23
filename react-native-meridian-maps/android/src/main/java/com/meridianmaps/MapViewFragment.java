@@ -42,15 +42,21 @@ public class MapViewFragment extends Fragment
     implements MapView.DirectionsEventListener, MapView.MapEventListener, MapView.MarkerEventListener {
 
   private static final String TAG = "MeridianMapView";
+  private EditorKey appKey;
+  private EditorKey mapKey;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    Log.e(TAG, "=== FRAGMENT onCreate() ===");
-    if (getArguments() != null) {
-      Log.d(TAG, "Fragment arguments: " + getArguments().toString());
-    } else {
-      Log.e(TAG, "No fragment arguments!");
+
+    Bundle args = getArguments();
+    if (args != null) {
+      String appId = args.getString("APP_KEY");
+      String mapId = args.getString("MAP_KEY");
+      if (appId != null && mapId != null) {
+        appKey = EditorKey.forApp(appId);
+        mapKey = EditorKey.forMap(mapId, appKey);
+      }
     }
   }
 
@@ -83,7 +89,7 @@ public class MapViewFragment extends Fragment
 
     // Use the app key and map key defined in the Application class
     // Important: These are already EditorKey objects, not strings
-    mapView.setAppKey(Application.APP_KEY);
+    mapView.setAppKey(appKey);
 
     // If you want to handle MapView events
     mapView.setMapEventListener(this);
@@ -119,7 +125,7 @@ public class MapViewFragment extends Fragment
     // Set which map to load
     // It is recommended to do this after setting the map options
     // Important: MAP_KEY is already an EditorKey object, not a string
-    mapView.setMapKey(Application.MAP_KEY);
+    mapView.setMapKey(mapKey);
 
     // Demonstration of how to customize the mapView's locationMarker:
     // change default color for Bluetooth to orange
@@ -347,7 +353,7 @@ public class MapViewFragment extends Fragment
     // Lets see if we can get the users location
     // Note: This method expects an EditorKey, which is what Application.APP_KEY
     // already is
-    locationRequest = LocationRequest.requestCurrentLocation(getActivity(), Application.APP_KEY,
+    locationRequest = LocationRequest.requestCurrentLocation(getActivity(), appKey,
         new LocationRequest.LocationRequestListener() {
 
           @Override
@@ -376,8 +382,9 @@ public class MapViewFragment extends Fragment
     // Handle any exclusions
     // The SearchActivity.createIntent method expects an EditorKey object, which is
     // what Application.APP_KEY is
+
     sendEvent("onSearchActivityStarted", null);
-    Intent i = SearchActivity.createIntent(getActivity(), Application.APP_KEY,
+    Intent i = SearchActivity.createIntent(getActivity(), appKey,
         destination == null ? null : destination.getSearchExclusions());
     i.putExtra(PENDING_DESTINATION_KEY, destination);
     startActivityForResult(i, SOURCE_REQUEST_CODE);
@@ -393,7 +400,7 @@ public class MapViewFragment extends Fragment
     directions = new Directions.Builder()
         // The setAppKey method expects an EditorKey object, which is what
         // Application.APP_KEY is
-        .setAppKey(Application.APP_KEY)
+        .setAppKey(appKey)
         .setDestination(destination)
         .setListener(new Directions.DirectionsRequestListener() {
           @Override
@@ -523,9 +530,9 @@ public class MapViewFragment extends Fragment
 
   public void setRoute(com.arubanetworks.meridian.maps.directions.Route route) {
     if (mapView != null) {
-        mapView.setRoute(route);
+      mapView.setRoute(route);
     } else {
-        Log.w(TAG, "mapView is null. Cannot set route.");
+      Log.w(TAG, "mapView is null. Cannot set route.");
     }
   }
 

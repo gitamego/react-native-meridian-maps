@@ -25,6 +25,9 @@ import com.arubanetworks.meridian.locationsharing.LocationSharing;
 import com.arubanetworks.meridian.locationsharing.LocationSharingException;
 import com.arubanetworks.meridian.locationsharing.User;
 import com.arubanetworks.meridian.util.Icons;
+import com.arubanetworks.meridian.editor.EditorKey;
+
+import android.util.Log;
 
 import java.util.List;
 
@@ -42,8 +45,11 @@ public class LocationSharingFragment extends Fragment implements LocationSharing
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // we need to initialize Location Sharing first
-        LocationSharing.initWithAppKey(Application.APP_KEY);
+        String appId = getArguments() != null ? getArguments().getString("APP_KEY") : null;
+        if (appId == null) {
+            throw new IllegalStateException("Missing APP_KEY in fragment arguments");
+        }
+        LocationSharing.initWithAppKey(EditorKey.forApp(appId));
     }
 
     @Override
