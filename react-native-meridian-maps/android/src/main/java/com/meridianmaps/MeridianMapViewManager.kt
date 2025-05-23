@@ -298,6 +298,7 @@ private fun createMapFragment() {
         try {
             // First configure the SDK with the token
             Log.d(TAG, "Configuring Meridian SDK with token")
+            // Meridian.configure(context.applicationContext,"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ2YWx1ZSI6IjVlNjliZDg4NGI1OGUwYzBlN2ExZmVlOTZiZWZkZmRhZDg5NDE0YzIiLCJ0IjoxNzM3OTkwOTE2fQ.0aW0W0JM3dDcLPH1ttn6KPoZyro_ZqTk1OvisC_rbWY")
             Meridian.configure(context.applicationContext, appToken!!)
             Log.d(TAG, "Meridian SDK configured successfully")
 

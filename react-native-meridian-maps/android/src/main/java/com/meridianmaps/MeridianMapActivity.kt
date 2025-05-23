@@ -62,6 +62,7 @@ class MeridianMapActivity : AppCompatActivity() {
                 Log.e(TAG, "Missing app key, map key, or app token")
                 return
             }
+            // Meridian.configure(applicationContext, "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ2YWx1ZSI6IjVlNjliZDg4NGI1OGUwYzBlN2ExZmVlOTZiZWZkZmRhZDg5NDE0YzIiLCJ0IjoxNzM3OTkwOTE2fQ.0aW0W0JM3dDcLPH1ttn6KPoZyro_ZqTk1OvisC_rbWY")
 
             // // Check if SDK is initialized
             // if (Meridian.getShared() == null) {
