@@ -29,11 +29,12 @@ import com.arubanetworks.meridian.maps.MapView;
 import com.arubanetworks.meridian.maps.Marker;
 import com.arubanetworks.meridian.maps.Transaction;
 import com.arubanetworks.meridian.maps.directions.Directions;
+import com.arubanetworks.meridian.search.SearchActivity;
 import com.arubanetworks.meridian.maps.directions.DirectionsDestination;
 import com.arubanetworks.meridian.maps.directions.DirectionsResponse;
 import com.arubanetworks.meridian.maps.directions.DirectionsSource;
 import com.arubanetworks.meridian.maps.directions.TransportType;
-import com.arubanetworks.meridian.search.SearchActivity;
+import com.arubanetworks.meridian.maps.directions.Route;
 
 import java.util.ArrayList;
 
@@ -76,13 +77,9 @@ public class MapViewFragment extends Fragment
 
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    Log.e(TAG, "=== FRAGMENT onCreateView() ===");
-    Log.e("MeridianMapView", "=== MAP VIEW FRAGMENT CREATED ===");
-    Log.d("MapViewFragment", "Creating map view");
     View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
 
     mapView = layout.findViewById(R.id.demo_mapview);
-    Log.d("MeridianMapView", "MapView found: " + (mapView != null));
 
     // Use the app key and map key defined in the Application class
     // Important: These are already EditorKey objects, not strings
@@ -122,9 +119,7 @@ public class MapViewFragment extends Fragment
     // Set which map to load
     // It is recommended to do this after setting the map options
     // Important: MAP_KEY is already an EditorKey object, not a string
-    Log.d("MeridianMapView", "Setting map key: " + Application.MAP_KEY);
     mapView.setMapKey(Application.MAP_KEY);
-    Log.d("MeridianMapView", "Map key set, mapView ready: " + (mapView != null));
 
     // Demonstration of how to customize the mapView's locationMarker:
     // change default color for Bluetooth to orange
@@ -166,15 +161,11 @@ public class MapViewFragment extends Fragment
   //
   @Override
   public void onMapLoadStart() {
-    Log.e("MeridianMapView", "=== MAP LOAD STARTED ===");
-    Log.d("MeridianMapView", "Starting map load");
     sendEvent("onMapLoadStart", null);
   }
 
   @Override
   public void onMapLoadFinish() {
-    Log.e("MeridianMapView", "=== MAP LOAD FINISHED ===");
-    Log.d("MeridianMapView", "Map loaded successfully");
     sendEvent("onMapLoadFinish", null);
   }
 
@@ -288,11 +279,7 @@ public class MapViewFragment extends Fragment
   //
   @Override
   public boolean onMarkerSelect(Marker marker) {
-    // Add more prominent logging
-    Log.e("jafijadsiojfaiosjd", "=== MARKER SELECT EVENT TRIGGERED ===");
-    Log.d("jafijadsiojfaiosjd", "Marker selected - ID: " + (marker != null ? marker.getId() : "null"));
     if (marker == null) {
-      Log.e("jafijadsiojfaiosjd", "Marker is null!");
       return false;
     }
 
@@ -306,10 +293,10 @@ public class MapViewFragment extends Fragment
       // Get the associated placemark if needed
       Placemark placemark = mapView.getAssociatedPlacemark(marker);
       if (placemark != null) {
-        Log.d("jafijadsiojfaiosjd", "Associated placemark ID: " + placemark.getKey().getId());
+        sendEvent("onMarkerSelect", event);
       }
     } catch (Exception e) {
-      Log.e("jafijadsiojfaiosjd", "Error handling marker selection", e);
+      Log.e(TAG, "Error handling marker selection", e);
     }
 
     return false;
@@ -426,7 +413,6 @@ public class MapViewFragment extends Fragment
 
           @Override
           public void onDirectionsRequestError(Throwable tr) {
-            Log.e("MapViewFragment", "Directions request failed", tr);
             if (mapView != null) {
               mapView.onDirectionsRequestError(tr);
             }
@@ -487,10 +473,10 @@ public class MapViewFragment extends Fragment
         themedReactContext.getJSModule(com.facebook.react.uimanager.events.RCTEventEmitter.class)
             .receiveEvent(viewId, eventName, params);
       } else {
-        Log.e("MapViewFragment", "ThemedReactContext is null. Cannot send event.");
+        Log.e(TAG, "ThemedReactContext is null. Cannot send event.");
       }
     } catch (Exception e) {
-      Log.e("MapViewFragment", "Error sending event to React Native: " + e.getMessage());
+      Log.e(TAG, "Error sending event to React Native: " + e.getMessage());
     }
   }
 
@@ -498,35 +484,35 @@ public class MapViewFragment extends Fragment
   public void performNativeUpdate() {
     if (mapView != null) {
       try {
-        Log.d("MapViewFragment", "Performing native update (invalidate)");
+        Log.d(TAG, "Performing native update (invalidate)");
         mapView.invalidate();
       } catch (Exception e) {
-        Log.e("MapViewFragment", "Error during performNativeUpdate: " + e.getMessage(), e);
+        Log.e(TAG, "Error during performNativeUpdate: " + e.getMessage(), e);
       }
     } else {
-      Log.w("MapViewFragment", "performNativeUpdate called but mapView is null");
+      Log.w(TAG, "performNativeUpdate called but mapView is null");
     }
   }
 
   public void startDirectionsForDestination(DirectionsDestination destination) {
     if (destination == null) {
-      Log.e("MapViewFragment", "Cannot start directions: destination is null");
+      Log.e(TAG, "Cannot start directions: destination is null");
       sendEvent("onDirectionsError", null);
       return;
     }
 
-    Log.d("MapViewFragment", "Starting directions to destination: " + destination);
+    Log.d(TAG, "Starting directions to destination: " + destination);
 
     // Check if we have a valid map view
     if (mapView == null) {
-      Log.e("MapViewFragment", "Cannot start directions: mapView is null");
+      Log.e(TAG, "Cannot start directions: mapView is null");
       sendEvent("onDirectionsError", null);
       return;
     }
 
     // Check if we have a valid context
     if (getContext() == null) {
-      Log.e("MapViewFragment", "Cannot start directions: context is null");
+      Log.e(TAG, "Cannot start directions: context is null");
       sendEvent("onDirectionsError", null);
       return;
     }
@@ -539,7 +525,7 @@ public class MapViewFragment extends Fragment
     if (mapView != null) {
         mapView.setRoute(route);
     } else {
-        Log.w("MapViewFragment", "mapView is null. Cannot set route.");
+        Log.w(TAG, "mapView is null. Cannot set route.");
     }
   }
 
