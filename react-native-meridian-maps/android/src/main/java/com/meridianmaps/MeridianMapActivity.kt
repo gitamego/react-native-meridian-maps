@@ -22,6 +22,7 @@ class MeridianMapActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "MeridianMapActivity onCreate() called")  // Add this line
 
         try {
             // Set the layout
@@ -48,18 +49,29 @@ class MeridianMapActivity : AppCompatActivity() {
 
     private fun initializeMap() {
         try {
-            // Check if SDK is initialized
-            if (Meridian.getShared() == null) {
-                Log.d(TAG, "Initializing Meridian SDK")
-                Meridian.configure(applicationContext, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk")
+            // Get app and map keys
+            val appId = intent.getStringExtra("APP_KEY") ?: ""
+            val mapId = intent.getStringExtra("MAP_KEY") ?: ""
+            val appToken = intent.getStringExtra("APP_TOKEN") ?: ""
+
+            Log.d(TAG, "App ID: $appId")
+            Log.d(TAG, "Map ID: $mapId")
+            Log.d(TAG, "App Token: ${if (appToken.isNotEmpty()) "[REDACTED]" else ""}")
+
+            if (appId.isEmpty() || mapId.isEmpty() || appToken.isEmpty()) {
+                Log.e(TAG, "Missing app key, map key, or app token")
+                return
             }
+
+            // // Check if SDK is initialized
+            // if (Meridian.getShared() == null) {
+            //     Log.d(TAG, "Initializing Meridian SDK")
+            //     Meridian.configure(applicationContext, appToken)
+            // }
 
             // Find the map view
             mapView = findViewById(R.id.meridian_map_view)
 
-            // Get app and map keys
-            val appId = intent.getStringExtra("APP_KEY") ?: "5809862863224832"
-            val mapId = intent.getStringExtra("MAP_KEY") ?: "5668600916475904"
 
             Log.d(TAG, "Using APP_KEY=$appId and MAP_KEY=$mapId")
 

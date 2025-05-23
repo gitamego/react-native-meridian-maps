@@ -233,7 +233,7 @@ class MeridianMapContainerView(
      * Update the map when configuration parameters are set
      */
     fun updateMapIfReady() {
-        if (!appId.isNullOrEmpty() && !mapId.isNullOrEmpty()) {
+        if (!appId.isNullOrEmpty() && !mapId.isNullOrEmpty() && appToken != null) {
             Log.d(TAG, "Configuration ready, appId: $appId, mapId: $mapId")
             if (isAttachedToWindow) {
                 createMapFragment()
@@ -291,13 +291,13 @@ class MeridianMapContainerView(
 
         try {
             Log.d(TAG, "Creating map fragment with appId: $appId, mapId: $mapId")
-
                 // Create the fragment
                 mapFragment = MapViewFragment().apply {
                     Log.d(TAG, "MapViewFragment instance created")
                     arguments = Bundle().apply {
                         putString("APP_KEY", appId)
                         putString("MAP_KEY", mapId)
+                        putString("APP_TOKEN", appToken)
                         putBoolean("ENABLE_LOCATION", locationUpdatesEnabled)
                     }
                     setThemedReactContext(themedContext)
@@ -309,7 +309,6 @@ class MeridianMapContainerView(
                 .replace(id, mapFragment!!, "mapFragment") // Use this view's ID directly
                 .commitNow()
 
-            Log.d(TAG, "✅ Map fragment successfully added")
             sendEvent("onMapLoadStart", null)
 
         } catch (e: Exception) {
