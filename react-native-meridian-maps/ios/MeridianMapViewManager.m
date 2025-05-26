@@ -117,10 +117,21 @@
   CustomMapViewController *mapViewController =
       [[CustomMapViewController alloc] initWithEditorKey:mapId];
   self.mapViewController = mapViewController;
-  
+
   MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
   [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
    self.isMapInitialized = YES;
+
+   // Log all placemarks from all floors after map loads
+   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+       [self getAllPlacemarksFromAllFloors:^(NSArray<MRPlacemark *> *placemarks, NSError *error) {
+           if (error) {
+               NSLog(@"[MeridianMapView] Failed to get all placemarks: %@", error.localizedDescription);
+           } else {
+               NSLog(@"[MeridianMapView] Successfully retrieved %ld placemarks from all floors", (long)placemarks.count);
+           }
+       }];
+   });
 }
 
 - (void)updateMapIfNeeded {
@@ -249,46 +260,164 @@
 }
 
 - (void)startRouteToPlacemarkWithID:(NSString *)placemarkID {
+    NSLog(@"[MeridianMapView] *** START ROUTE CALLED ***");
+    NSLog(@"[MeridianMapView] Target placemark ID: %@", placemarkID);
+    NSLog(@"[MeridianMapView] Current map key: %@", self.mapViewController.mapView.mapKey.identifier);
+
     // Ensure the mapView is available
     if (!self.mapViewController.mapView) {
-        NSLog(@"Map view is not initialized.");
+        NSLog(@"[MeridianMapView] ERROR: Map view is not initialized.");
         return;
     }
 
-    // Create a placemark key using the provided placemark ID and the current map's key
-    MREditorKey *placemarkKey = [MREditorKey keyForPlacemark:placemarkID map:self.mapViewController.mapView.mapKey];
-    
-    // Initialize a directions request
-    MRDirectionsRequest *request = [MRDirectionsRequest new];
-    request.app = [MREditorKey keyWithIdentifier:self.appId];
-    request.destination = [MRDirectionsDestination destinationWithPlacemarkKey:placemarkKey];
-    request.source = [MRDirectionsSource sourceWithCurrentLocation];
-
-    // Create a directions object with the request
-    MRDirections *directions = [[MRDirections alloc] initWithRequest:request presentingViewController:self.mapViewController];
-  
-    // Calculate directions asynchronously
-    [directions calculateDirectionsWithCompletionHandler:^(MRDirectionsResponse *response, NSError *error) {
+    // Use the smart approach: find the placemark from our all-floors search and use the built-in method
+    [self getAllPlacemarksFromAllFloors:^(NSArray<MRPlacemark *> *placemarks, NSError *error) {
         if (error) {
-            NSLog(@"Error calculating directions: %@", error.localizedDescription);
+            NSLog(@"[MeridianMapView] Error finding placemark: %@", error.localizedDescription);
             return;
         }
 
-        if (response.routes.count > 0) {
-//            dispatch_async(dispatch_get_main_queue(), ^{
-              MRRoute *route = response.routes.firstObject;
-              MRMapView *mapView = self.mapViewController.mapView;
-              [mapView setShowsDirectionsControl: YES];
-              [mapView setShowsOverviewButton: YES];
-              [mapView deselectAnnotationAnimated:NO];
-              [mapView setRoute:route animated:YES];
-//              }
-//            );
-           
-        } else {
-            NSLog(@"No routes found.");
+        // Find the target placemark
+        MRPlacemark *targetPlacemark = nil;
+        for (MRPlacemark *placemark in placemarks) {
+            if ([placemark.key.identifier isEqualToString:placemarkID]) {
+                targetPlacemark = placemark;
+                NSLog(@"[MeridianMapView] Found target placemark: %@ (%@) on floor: %@",
+                      placemark.key.identifier,
+                      placemark.name ?: @"no name",
+                      placemark.key.parent.identifier);
+                break;
+            }
         }
+
+        if (!targetPlacemark) {
+            NSLog(@"[MeridianMapView] ERROR: Could not find placemark with ID: %@", placemarkID);
+            return;
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            // Switch to the correct floor if needed
+            NSString *currentFloor = self.mapViewController.mapView.mapKey.identifier;
+            NSString *targetFloor = targetPlacemark.key.parent.identifier;
+
+            if (![currentFloor isEqualToString:targetFloor]) {
+                NSLog(@"[MeridianMapView] Switching from floor %@ to floor %@", currentFloor, targetFloor);
+                self.mapViewController.mapView.mapKey = targetPlacemark.key.parent;
+
+                // Wait for floor change, then start directions
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    NSLog(@"[MeridianMapView] Floor switched, starting directions to placemark");
+                    [self.mapViewController startDirectionsToPlacemark:targetPlacemark];
+                });
+            } else {
+                NSLog(@"[MeridianMapView] Already on correct floor, starting directions immediately");
+                [self.mapViewController startDirectionsToPlacemark:targetPlacemark];
+            }
+        });
     }];
+}
+
+- (void)getAllPlacemarksFromAllFloors:(void (^)(NSArray<MRPlacemark *> *placemarks, NSError *error))completion {
+    NSLog(@"[MeridianMapView] === SEARCHING ALL FLOORS FOR PLACEMARKS ===");
+    NSLog(@"[MeridianMapView] Using App ID: %@", self.appId);
+
+    // Create a placemark request to search across all maps in the app
+    MREditorKey *appKey = [MREditorKey keyWithIdentifier:self.appId];
+    MRPlacemarkRequest *request = [[MRPlacemarkRequest alloc] initWithApp:appKey placemarkIdentifier:nil mapKey:nil];
+
+    [request startWithCompletionHandler:^(MRPlacemarkResponse *response, NSError *error) {
+        if (error) {
+            NSLog(@"[MeridianMapView] Error getting all placemarks: %@", error.localizedDescription);
+            completion(nil, error);
+            return;
+        }
+
+        NSArray<MRPlacemark *> *allPlacemarks = [response getPlacemarks];
+        NSLog(@"[MeridianMapView] === FOUND %ld PLACEMARKS ACROSS ALL FLOORS ===", (long)allPlacemarks.count);
+
+        // Group by floor for better organization
+        NSMutableDictionary *placemarksByFloor = [NSMutableDictionary dictionary];
+
+        for (MRPlacemark *placemark in allPlacemarks) {
+            NSString *floorID = placemark.key.parent.identifier ?: @"Unknown Floor";
+
+            if (!placemarksByFloor[floorID]) {
+                placemarksByFloor[floorID] = [NSMutableArray array];
+            }
+            [placemarksByFloor[floorID] addObject:placemark];
+        }
+
+        // Log organized by floor
+        for (NSString *floorID in placemarksByFloor.allKeys) {
+            NSArray *floorPlacemarks = placemarksByFloor[floorID];
+            NSLog(@"[MeridianMapView] --- FLOOR %@ (%ld placemarks) ---", floorID, (long)floorPlacemarks.count);
+
+            for (NSInteger i = 0; i < floorPlacemarks.count; i++) {
+                MRPlacemark *placemark = floorPlacemarks[i];
+                NSLog(@"[MeridianMapView]   %ld. ID: %@", (long)(i + 1), placemark.key.identifier);
+                NSLog(@"[MeridianMapView]      Name: %@", placemark.name ?: @"(no name)");
+                NSLog(@"[MeridianMapView]      Type: %@", placemark.type ?: @"(no type)");
+                NSLog(@"[MeridianMapView]      Floor: %@", placemark.key.parent.identifier ?: @"(no parent)");
+                NSLog(@"[MeridianMapView]      ---");
+            }
+        }
+
+        NSLog(@"[MeridianMapView] === END ALL FLOORS SEARCH ===");
+        completion(allPlacemarks, nil);
+    }];
+}
+
+- (UIViewController *)findRootViewController {
+    // Get the key window
+    UIWindow *window = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIWindowScene *windowScene in [UIApplication sharedApplication].connectedScenes) {
+            if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *w in windowScene.windows) {
+                    if (w.isKeyWindow) {
+                        window = w;
+                        break;
+                    }
+                }
+                if (window) break;
+            }
+        }
+    }
+
+    if (!window) {
+        window = [[UIApplication sharedApplication] keyWindow];
+        if (!window) {
+            window = [[[UIApplication sharedApplication] windows] firstObject];
+        }
+    }
+
+    UIViewController *rootViewController = window.rootViewController;
+
+    // Navigate to the topmost presented view controller
+    while (rootViewController.presentedViewController) {
+        rootViewController = rootViewController.presentedViewController;
+    }
+
+    // If it's a navigation controller, get the top view controller
+    if ([rootViewController isKindOfClass:[UINavigationController class]]) {
+        UINavigationController *navController = (UINavigationController *)rootViewController;
+        rootViewController = navController.topViewController;
+    }
+
+    // If it's a tab bar controller, get the selected view controller
+    if ([rootViewController isKindOfClass:[UITabBarController class]]) {
+        UITabBarController *tabController = (UITabBarController *)rootViewController;
+        rootViewController = tabController.selectedViewController;
+
+        // If the selected view controller is a navigation controller, get its top view controller
+        if ([rootViewController isKindOfClass:[UINavigationController class]]) {
+            UINavigationController *navController = (UINavigationController *)rootViewController;
+            rootViewController = navController.topViewController;
+        }
+    }
+
+    NSLog(@"[MeridianMapView] Found root view controller: %@", rootViewController);
+    return rootViewController ?: self.mapViewController;
 }
 //- (nonnull NSArray<id<UIFocusItem>> *)focusItemsInRect:(CGRect)rect {
 //  NSLog(@"focusItemsInRect");

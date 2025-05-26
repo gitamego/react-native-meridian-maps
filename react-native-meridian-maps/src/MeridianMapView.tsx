@@ -140,12 +140,13 @@ export const MeridianMapView = forwardRef<
       return;
     }
 
-    UIManager.dispatchViewManagerCommand(
-      reactTag,
-      UIManager.getViewManagerConfig(ComponentName)?.Commands
-        .startRouteToPlacemark,
-      [placemarkID]
-    );
+    const commandId = UIManager.getViewManagerConfig(ComponentName)?.Commands?.startRouteToPlacemark;
+    if (commandId === undefined) {
+      console.warn('startRouteToPlacemark command not found');
+      return;
+    }
+
+    UIManager.dispatchViewManagerCommand(reactTag, commandId, [placemarkID]);
   };
 
   // Validate required props
