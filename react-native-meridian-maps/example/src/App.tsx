@@ -8,6 +8,7 @@ import {
   Platform,
   UIManager,
   Alert,
+  Button,
 } from 'react-native';
 import {
   MeridianMapView,
@@ -183,6 +184,13 @@ export default function App() {
     console.log('Search activity started');
   };
 
+  const handleStartRoute = () => {
+    const placemarkID = '5668600916475904_5693417237512192'; // Replace with actual placemark ID
+    // 5668600916475904_5693417237512192
+    // 5668600916475904_5709068098338816
+    mapViewRef.current?.startRoute(placemarkID);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.scrollContent}>
@@ -192,6 +200,8 @@ export default function App() {
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>{debugInfo}</Text>
         </View>
+
+        <Button title="Route to Casio" onPress={handleStartRoute} />
 
         <View style={[styles.mapContainer, { height }]}>
           {/* <View style={[styles.mapContainer]} key={activeKey}> */}
@@ -204,8 +214,11 @@ export default function App() {
               style={styles.map}
               appId="5809862863224832"
               mapId="5668600916475904"
-              showLocationUpdates={true}
               appToken="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
+              showLocationUpdates={true}
+              // appId="4548039820312576"
+              // mapId="5460994577530880"
+              // appToken="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ2YWx1ZSI6IjVlNjliZDg4NGI1OGUwYzBlN2ExZmVlOTZiZWZkZmRhZDg5NDE0YzIiLCJ0IjoxNzM3OTkwOTE2fQ.0aW0W0JM3dDcLPH1ttn6KPoZyro_ZqTk1OvisC_rbWY"
               onMapLoadFail={handleMapError}
               onLocationUpdated={handleLocationUpdate}
               onMarkerDeselect={handleMarkerDeselect}

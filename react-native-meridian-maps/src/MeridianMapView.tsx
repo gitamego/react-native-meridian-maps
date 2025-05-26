@@ -101,6 +101,7 @@ const NativeMeridianMapView = isComponentAvailable
 // Create a wrapper component with event handling and proper mounting behavior
 export interface MeridianMapViewComponentRef {
   triggerUpdate: () => void;
+  startRoute: (placemarkID: string) => void;
 }
 
 export const MeridianMapView = forwardRef<
@@ -132,6 +133,22 @@ export const MeridianMapView = forwardRef<
     }
   };
 
+  const startRoute = (placemarkID: string) => {
+    const reactTag = findNodeHandle(nativeMapRef.current);
+    if (!reactTag) {
+      console.warn('Cannot start route, nativeMapRef is not set.');
+      return;
+    }
+
+    const commandId = UIManager.getViewManagerConfig(ComponentName)?.Commands?.startRouteToPlacemark;
+    if (commandId === undefined) {
+      console.warn('startRouteToPlacemark command not found');
+      return;
+    }
+
+    UIManager.dispatchViewManagerCommand(reactTag, commandId, [placemarkID]);
+  };
+
   // Validate required props
   useEffect(() => {
     if (!props.appId) {
@@ -158,7 +175,10 @@ export const MeridianMapView = forwardRef<
       console.log('MeridianMapView node handle ID:', nodeId);
 
       // Listen for events from native side
-      const eventEmitter = new NativeEventEmitter(NativeModules.MeridianMaps);
+      const eventEmitter =
+        Platform.OS === 'ios'
+          ? new NativeEventEmitter(NativeModules.MMEventEmitter)
+          : new NativeEventEmitter(NativeModules.MeridianMaps);
 
       // Map event listeners
       const subscriptions = [
@@ -278,6 +298,7 @@ export const MeridianMapView = forwardRef<
       console.log('Parent component triggered update.'); // Optional: Log if called externally
       executeNativeUpdateCommand();
     },
+    startRoute: startRoute,
   }));
 
   // --- Effect to trigger update when internal activeKey changes ---
