@@ -22,6 +22,8 @@
 
 @property(nonatomic, assign) BOOL isMapInitialized;
 @property(nonatomic, weak) RCTBridge *bridge;
+@property(nonatomic, strong) UIView *loadingOverlay;
+@property(nonatomic, assign) BOOL isWaitingForDirections;
 
 @end
 
@@ -121,17 +123,6 @@
   MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
   [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
    self.isMapInitialized = YES;
-
-   // Log all placemarks from all floors after map loads
-   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-       [self getAllPlacemarksFromAllFloors:^(NSArray<MRPlacemark *> *placemarks, NSError *error) {
-           if (error) {
-               NSLog(@"[MeridianMapView] Failed to get all placemarks: %@", error.localizedDescription);
-           } else {
-               NSLog(@"[MeridianMapView] Successfully retrieved %ld placemarks from all floors", (long)placemarks.count);
-           }
-       }];
-   });
 }
 
 - (void)updateMapIfNeeded {
@@ -259,6 +250,55 @@
   NSLog(@"updateFocusIfNeeded");
 }
 
+- (void)showLoading {
+    NSLog(@"[MeridianMapView] Showing loading indicator");
+
+    if (self.loadingOverlay) {
+        return; // Already showing
+    }
+
+    // Create loading overlay
+    self.loadingOverlay = [[UIView alloc] initWithFrame:self.bounds];
+    self.loadingOverlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5];
+    self.loadingOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+
+    // Create activity indicator
+    UIActivityIndicatorView *spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
+    spinner.color = [UIColor whiteColor];
+    spinner.center = self.loadingOverlay.center;
+    spinner.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
+    [spinner startAnimating];
+
+    // Create label
+    UILabel *label = [[UILabel alloc] init];
+    label.text = @"Finding route...";
+    label.textColor = [UIColor whiteColor];
+    label.font = [UIFont systemFontOfSize:16];
+    label.textAlignment = NSTextAlignmentCenter;
+    [label sizeToFit];
+    label.center = CGPointMake(self.loadingOverlay.center.x, self.loadingOverlay.center.y + 40);
+    label.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
+
+    [self.loadingOverlay addSubview:spinner];
+    [self.loadingOverlay addSubview:label];
+    [self addSubview:self.loadingOverlay];
+}
+
+- (void)hideLoading {
+    NSLog(@"[MeridianMapView] Hiding loading indicator");
+
+    if (self.loadingOverlay) {
+        [self.loadingOverlay removeFromSuperview];
+        self.loadingOverlay = nil;
+    }
+}
+
+- (void)hideLoadingAfterDelay:(NSTimeInterval)delay {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self hideLoading];
+    });
+}
+
 - (void)startRouteToPlacemarkWithID:(NSString *)placemarkID {
     NSLog(@"[MeridianMapView] *** START ROUTE CALLED ***");
     NSLog(@"[MeridianMapView] Target placemark ID: %@", placemarkID);
@@ -270,10 +310,14 @@
         return;
     }
 
+    // Show loading indicator
+    [self showLoading];
+
     // Use the smart approach: find the placemark from our all-floors search and use the built-in method
     [self getAllPlacemarksFromAllFloors:^(NSArray<MRPlacemark *> *placemarks, NSError *error) {
         if (error) {
             NSLog(@"[MeridianMapView] Error finding placemark: %@", error.localizedDescription);
+            // [self hideLoading];
             return;
         }
 
@@ -292,6 +336,7 @@
 
         if (!targetPlacemark) {
             NSLog(@"[MeridianMapView] ERROR: Could not find placemark with ID: %@", placemarkID);
+            // [self hideLoading];
             return;
         }
 
@@ -300,18 +345,21 @@
             NSString *currentFloor = self.mapViewController.mapView.mapKey.identifier;
             NSString *targetFloor = targetPlacemark.key.parent.identifier;
 
-            if (![currentFloor isEqualToString:targetFloor]) {
+                        if (![currentFloor isEqualToString:targetFloor]) {
                 NSLog(@"[MeridianMapView] Switching from floor %@ to floor %@", currentFloor, targetFloor);
+                // Switch floor immediately and start directions with minimal delay
                 self.mapViewController.mapView.mapKey = targetPlacemark.key.parent;
 
-                // Wait for floor change, then start directions
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                // Start directions with a very short delay to allow floor switch
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     NSLog(@"[MeridianMapView] Floor switched, starting directions to placemark");
                     [self.mapViewController startDirectionsToPlacemark:targetPlacemark];
+                    [self hideLoadingAfterDelay:5.0];
                 });
             } else {
                 NSLog(@"[MeridianMapView] Already on correct floor, starting directions immediately");
                 [self.mapViewController startDirectionsToPlacemark:targetPlacemark];
+                [self hideLoadingAfterDelay:1.0];
             }
         });
     }];
