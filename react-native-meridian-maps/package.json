@@ -1,6 +1,6 @@
 {
   "name": "react-native-meridian-maps",
-  "version": "0.1.16",
+  "version": "0.1.18",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {

@@ -341,6 +341,13 @@
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
+            // Debug logging before attempting directions
+            NSLog(@"[MeridianMapView] DEBUG: About to start directions");
+            NSLog(@"[MeridianMapView] DEBUG: Map Key: %@", self.mapViewController.mapView.mapKey.identifier);
+            NSLog(@"[MeridianMapView] DEBUG: Target placemark: %@ on floor: %@", targetPlacemark.key.identifier, targetPlacemark.key.parent.identifier);
+            NSLog(@"[MeridianMapView] DEBUG: Placemark name: %@", targetPlacemark.name ?: @"(no name)");
+            NSLog(@"[MeridianMapView] DEBUG: Map view state: %@", self.mapViewController.mapView.description);
+
             // Switch to the correct floor if needed
             NSString *currentFloor = self.mapViewController.mapView.mapKey.identifier;
             NSString *targetFloor = targetPlacemark.key.parent.identifier;
@@ -354,7 +361,7 @@
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     NSLog(@"[MeridianMapView] Floor switched, starting directions to placemark");
                     [self.mapViewController startDirectionsToPlacemark:targetPlacemark];
-                    [self hideLoadingAfterDelay:5.0];
+                    [self hideLoadingAfterDelay:1.0];
                 });
             } else {
                 NSLog(@"[MeridianMapView] Already on correct floor, starting directions immediately");
