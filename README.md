@@ -30,7 +30,7 @@ iOS: ios/MeridianCustom/MMEventEmitter.m -
 ```objc
 - (void)emitCustomEvent: (NSString *)eventName body: (NSDictionary *)body
 ```
-#### booth navigation
+#### booth simulated navigation - 
 booth navigation is only possible for certain routes(GPS coordinates can be configured in the [Edit console](edit.meridianapp.com))
 
 custom `startRouteToPlacemark` method is implemented to allow navigation by booth id
@@ -69,3 +69,10 @@ https://github.com/user-attachments/assets/1070d682-f7ef-41c3-bede-9f008677654a
 ### android:
 1. if map has multiple floors default floor doesn't render [workaround: navigate by booth id and then manually navigate to the desired floor]
 2. search icon press handling (UI breaks on repeated press)
+3. if there is no simulated navigation - `startRouteToPlacemark` will try to open the search bar (which causes bugs on iOS)
+
+workaround with navigating to the matching floor first works but takes a long time 
+ios/MeridianMapViewManager.m
+```objc
+self getAllPlacemarksFromAllFloors:^(NSArray<MRPlacemark *> *placemarks, NSError *error) 
+```
