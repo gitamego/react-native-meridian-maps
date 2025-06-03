@@ -30,3 +30,7 @@ https://github.com/user-attachments/assets/ca6966de-9c98-4919-9fa6-49ffa1165de9
 
 https://github.com/user-attachments/assets/1070d682-f7ef-41c3-bede-9f008677654a
 
+## Current issues:
+### android:
+1. if map has multiple floors default floor doesn't render [workaround: navigate by booth id and then manually navigate to the desired floor]
+2. search icon press handling (UI breaks on repeated press)
