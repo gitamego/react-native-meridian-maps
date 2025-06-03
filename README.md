@@ -16,8 +16,13 @@ export default function App() {
     </SafeAreaView>
   );
 }
-
 ```
+
+# Explanation
+Event driven communication between React Native and Native layers(iOS, android).
+android: android/src/main/java/com/meridianmaps/MapViewFragment.java - `private void sendEvent(String eventName, @androidx.annotation.Nullable com.facebook.react.bridge.WritableMap params)`
+iOS: ios/MeridianCustom/MMEventEmitter.m - `- (void)emitCustomEvent: (NSString *)eventName body: (NSDictionary *)body`
+
 
 https://github.com/user-attachments/assets/83cb79f4-0718-478a-82f3-940debb7f2f9
 
