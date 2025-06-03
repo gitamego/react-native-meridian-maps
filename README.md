@@ -23,14 +23,36 @@ Event driven communication between React Native and Native layers(iOS, android).
 
 android: android/src/main/java/com/meridianmaps/MapViewFragment.java - 
 ```kt
-  private void sendEvent(String eventName, @androidx.annotation.Nullable com.facebook.react.bridge.WritableMap params)
+private void sendEvent(String eventName, @androidx.annotation.Nullable com.facebook.react.bridge.WritableMap params)
 ```
 
 iOS: ios/MeridianCustom/MMEventEmitter.m - 
-```swift
-swift - (void)emitCustomEvent: (NSString *)eventName body: (NSDictionary *)body
+```objc
+- (void)emitCustomEvent: (NSString *)eventName body: (NSDictionary *)body
 ```
+#### booth navigation
+booth navigation is only possible for certain routes(GPS coordinates can be configured in the [Edit console](edit.meridianapp.com))
 
+custom `startRouteToPlacemark` method is implemented to allow navigation by booth id
+
+android: android/src/main/java/com/meridianmaps/MeridianMapViewManager.kt
+```kt
+fun startRouteToPlacemark(placemarkId: String)
+```
+iOS: ios/MeridianMapViewManager.m
+```objc
+- (void)startRouteToPlacemarkWithID:(NSString *)placemarkID
+```
+##### debug
+booth id logging can be achieved with
+android: android/src/main/java/com/meridianmaps/MapViewFragment.java'
+```java
+public boolean onMarkerSelect(Marker marker)
+```
+iOS: ios/MeridianCustom/CustomMapViewController.m
+```objc
+- (void)mapView:(MRMapView *)mapView didSelectAnnotationView:(MRAnnotationView *)view
+```
 
 https://github.com/user-attachments/assets/83cb79f4-0718-478a-82f3-940debb7f2f9
 
