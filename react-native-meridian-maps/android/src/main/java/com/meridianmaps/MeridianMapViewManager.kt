@@ -27,6 +27,10 @@ import com.arubanetworks.meridian.search.SearchActivity
 import com.arubanetworks.meridian.location.MeridianLocation
 import com.arubanetworks.meridian.maps.directions.DirectionsResponse
 
+// Add missing imports
+import android.content.Context
+import android.app.Activity
+
 /**
  * React Native view manager for Meridian Maps that creates and manages MapViewFragment instances
  */
@@ -43,6 +47,144 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
         // Command names
         private const val COMMAND_TRIGGER_UPDATE_NAME = "triggerUpdate"
         private const val COMMAND_START_ROUTE_NAME = "startRouteToPlacemark"
+        // SDK initialization state tracking
+        private var isSdkConfigured = false
+        private var isAppInitialized = false
+        private val configLock = Object()
+        private var lastAppId: String? = null
+        private var lastMapId: String? = null
+        private var lastAppToken: String? = null
+
+        /**
+         * Thread-safe SDK configuration that prevents multiple initialization
+         * @param context Application context
+         * @param activity Current activity
+         * @param appId Meridian app ID
+         * @param mapId Meridian map ID
+         * @param appToken Meridian app token
+         * @return true if SDK is ready to use, false if configuration failed
+         */
+        fun configureSdkIfNeeded(
+            context: Context,
+            activity: Activity,
+            appId: String,
+            mapId: String,
+            appToken: String
+        ): Boolean {
+            synchronized(configLock) {
+                try {
+                    // Check if SDK is already configured with same credentials
+                    if (isSdkConfigured && isAppInitialized) {
+                        if (lastAppId == appId && lastMapId == mapId && lastAppToken == appToken) {
+                            Log.d(TAG, "SDK already configured with same credentials, skipping...")
+                            return true
+                        } else {
+                            Log.w(TAG, "SDK configured with different credentials. Current: appId=$appId, mapId=$mapId")
+                            Log.w(TAG, "Previous: appId=$lastAppId, mapId=$lastMapId")
+                            // For different credentials, we might need to handle reconfiguration
+                            // For now, we'll proceed with existing configuration
+                            return true
+                        }
+                    }
+
+                    // Configure Meridian SDK if not already done
+                    if (!isSdkConfigured) {
+                        Log.d(TAG, "Configuring Meridian SDK with token")
+                        Meridian.configure(context.applicationContext, appToken)
+                        isSdkConfigured = true
+                        Log.d(TAG, "Meridian SDK configured successfully")
+                    }
+
+                    // Initialize MeridianApplication if not already done
+                    if (!isAppInitialized) {
+                        Log.d(TAG, "Initializing MeridianApplication with appId: $appId, mapId: $mapId")
+                        MeridianApplication.initialize(
+                            activity.application as Application,
+                            appId,
+                            mapId,
+                            appToken
+                        )
+
+                        // Verify initialization was successful
+                        if (MeridianApplication.APP_KEY == null || MeridianApplication.MAP_KEY == null) {
+                            throw IllegalStateException("Failed to initialize Meridian SDK - APP_KEY or MAP_KEY is null")
+                        }
+
+                        isAppInitialized = true
+                        lastAppId = appId
+                        lastMapId = mapId
+                        lastAppToken = appToken
+                        Log.d(TAG, "MeridianApplication initialized successfully")
+                    }
+
+                    return true
+
+                } catch (e: Exception) {
+                    when {
+                        e.message?.contains("configure more than once", ignoreCase = true) == true -> {
+                            Log.w(TAG, "SDK was already configured elsewhere, marking as configured")
+                            isSdkConfigured = true
+                            lastAppToken = appToken
+
+                            // Still try to initialize MeridianApplication if needed
+                            if (!isAppInitialized) {
+                                try {
+                                    MeridianApplication.initialize(
+                                        activity.application as Application,
+                                        appId,
+                                        mapId,
+                                        appToken
+                                    )
+                                    isAppInitialized = true
+                                    lastAppId = appId
+                                    lastMapId = mapId
+                                    Log.d(TAG, "MeridianApplication initialized after SDK was already configured")
+                                } catch (initError: Exception) {
+                                    Log.e(TAG, "Failed to initialize MeridianApplication after SDK configure error", initError)
+                                    return false
+                                }
+                            }
+                            return true
+                        }
+                        e.message?.contains("already initialized", ignoreCase = true) == true -> {
+                            Log.w(TAG, "MeridianApplication was already initialized elsewhere, marking as initialized")
+                            isAppInitialized = true
+                            lastAppId = appId
+                            lastMapId = mapId
+                            lastAppToken = appToken
+                            return true
+                        }
+                        else -> {
+                            Log.e(TAG, "Failed to configure/initialize Meridian SDK", e)
+                            return false
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Check if SDK is properly initialized
+         */
+        fun isSdkReady(): Boolean {
+            synchronized(configLock) {
+                return isSdkConfigured && isAppInitialized
+            }
+        }
+
+        /**
+         * Reset SDK state (useful for testing or troubleshooting)
+         */
+        fun resetSdkState() {
+            synchronized(configLock) {
+                Log.d(TAG, "Resetting SDK state")
+                isSdkConfigured = false
+                isAppInitialized = false
+                lastAppId = null
+                lastMapId = null
+                lastAppToken = null
+            }
+        }
     }
 
     override fun getName(): String = REACT_CLASS
@@ -295,35 +437,16 @@ private fun createMapFragment() {
     try {
         Log.d(TAG, "Initializing Meridian SDK with appId: $appId, mapId: $mapId")
 
-        try {
-            // First configure the SDK with the token
-            Log.d(TAG, "Configuring Meridian SDK with token")
-            Meridian.configure(context.applicationContext, appToken!!)
-            Log.d(TAG, "Meridian SDK configured successfully")
+        val configSuccess = MeridianMapViewManager.configureSdkIfNeeded(
+            context,
+            activity,
+            appId!!,
+            mapId!!,
+            appToken!!
+        )
 
-            // Then initialize the application with the app/map IDs
-            Log.d(TAG, "Initializing MeridianApplication with appId: $appId, mapId: $mapId")
-            MeridianApplication.initialize(
-                activity.application as Application,
-                appId!!,
-                mapId!!,
-                appToken!!
-            )
-
-            // Verify initialization was successful
-            if (MeridianApplication.APP_KEY == null || MeridianApplication.MAP_KEY == null) {
-                throw IllegalStateException("Failed to initialize Meridian SDK - APP_KEY or MAP_KEY is null")
-            }
-
-            Log.d(TAG, "MeridianApplication initialized successfully")
-        } catch (e: Exception) {
-            val error = when {
-                e is IllegalArgumentException -> "Invalid configuration: ${e.message}"
-                e is IllegalStateException -> "Initialization failed: ${e.message}"
-                else -> "Failed to initialize Meridian SDK: ${e.message}"
-            }
-            Log.e(TAG, error, e)
-            throw Exception(error, e)
+        if (!configSuccess) {
+            throw IllegalStateException("Failed to configure Meridian SDK")
         }
 
         // Create the map fragment
