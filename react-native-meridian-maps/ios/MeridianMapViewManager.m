@@ -95,6 +95,7 @@
   MRConfig *config = [MRConfig new];
   [config domainConfig].domainRegion = MRDomainRegionDefault;
   config.applicationToken = self.appToken ?: [MMHost applicationToken];
+  config.useSimulatedLocation = YES;
   [Meridian configure:config];
 
   // Set up navigation bar appearance
