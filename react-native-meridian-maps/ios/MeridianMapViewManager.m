@@ -9,11 +9,12 @@
 #import <React/RCTUIManager.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <CoreLocation/CoreLocation.h>
 
 // For NSString methods
 #import <Foundation/Foundation.h>
 
-@interface MeridianMapContainerView () <MRMapViewDelegate> {
+@interface MeridianMapContainerView () <MRMapViewDelegate, CLLocationManagerDelegate> {
   NSString *_appToken;
   NSString *_appId;
   NSString *_mapId;
@@ -26,6 +27,7 @@
 @property(nonatomic, assign) BOOL isWaitingForDirections;
 @property(nonatomic, strong) MRLocationManager *locationManager;
 @property(nonatomic, strong) MREditorKey *appKey;
+@property(nonatomic, strong) CLLocationManager *permissionLocationManager;
 
 @end
 
@@ -39,6 +41,8 @@
     _appId = nil;
     _mapId = nil;
     _appToken = nil;
+    _permissionLocationManager = [[CLLocationManager alloc] init];
+    _permissionLocationManager.delegate = self;
   }
   return self;
 }
@@ -51,6 +55,11 @@
         [self.locationManager stopUpdatingLocation];
         self.locationManager.delegate = nil;
         self.locationManager = nil;
+    }
+
+    if (self.permissionLocationManager) {
+        self.permissionLocationManager.delegate = nil;
+        self.permissionLocationManager = nil;
     }
 
     // Clean up map view controller
@@ -306,11 +315,45 @@
     }
 
     if (self.showLocationUpdates) {
-        NSLog(@"[MeridianMapView] Starting location updates");
-        [self.locationManager startUpdatingLocation];
+        CLAuthorizationStatus status;
+        if (@available(iOS 14.0, *)) {
+            status = self.permissionLocationManager.authorizationStatus;
+        } else {
+            status = [CLLocationManager authorizationStatus];
+        }
+
+        if (status == kCLAuthorizationStatusNotDetermined) {
+            NSLog(@"[MeridianMapView] Location permission not determined. Requesting 'When in Use' authorization.");
+            [self.permissionLocationManager requestWhenInUseAuthorization];
+        } else if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+            NSLog(@"[MeridianMapView] Starting location updates");
+            [self.locationManager startUpdatingLocation];
+        } else {
+            NSLog(@"[MeridianMapView] Location permission is denied or restricted. Status: %d", status);
+            MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+            NSDictionary *errorData = @{
+                @"error": @"Location permission denied or restricted.",
+                @"code": @(status)
+            };
+            [emitter emitCustomEvent:MMEventMapLoadFail body:errorData];
+            if (self.onMapLoadFail) {
+                self.onMapLoadFail(errorData);
+            }
+        }
     } else {
         NSLog(@"[MeridianMapView] Stopping location updates");
         [self.locationManager stopUpdatingLocation];
+    }
+}
+
+#pragma mark - CLLocationManagerDelegate
+
+- (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
+    NSLog(@"[MeridianMapView] Location authorization status changed to: %d", status);
+    if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+        if (self.showLocationUpdates) {
+            [self updateLocationUpdates];
+        }
     }
 }
 
