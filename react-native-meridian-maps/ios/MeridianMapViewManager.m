@@ -120,7 +120,6 @@
 
   @try {
     [self layoutSubviews];
-
     // Configure the Meridian SDK
     MRConfig *config = [MRConfig new];
     [config domainConfig].domainRegion = MRDomainRegionDefault;
