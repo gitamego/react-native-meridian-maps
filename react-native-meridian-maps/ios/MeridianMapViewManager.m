@@ -9,11 +9,12 @@
 #import <React/RCTUIManager.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <CoreLocation/CoreLocation.h>
 
 // For NSString methods
 #import <Foundation/Foundation.h>
 
-@interface MeridianMapContainerView () <MRMapViewDelegate> {
+@interface MeridianMapContainerView () <MRMapViewDelegate, CLLocationManagerDelegate> {
   NSString *_appToken;
   NSString *_appId;
   NSString *_mapId;
@@ -24,6 +25,9 @@
 @property(nonatomic, weak) RCTBridge *bridge;
 @property(nonatomic, strong) UIView *loadingOverlay;
 @property(nonatomic, assign) BOOL isWaitingForDirections;
+@property(nonatomic, strong) MRLocationManager *locationManager;
+@property(nonatomic, strong) MREditorKey *appKey;
+@property(nonatomic, strong) CLLocationManager *permissionLocationManager;
 
 @end
 
@@ -37,8 +41,32 @@
     _appId = nil;
     _mapId = nil;
     _appToken = nil;
+    _permissionLocationManager = [[CLLocationManager alloc] init];
+    _permissionLocationManager.delegate = self;
   }
   return self;
+}
+
+- (void)dealloc {
+    NSLog(@"[MeridianMapView] Deallocating MeridianMapContainerView");
+
+    // Stop location updates
+    if (self.locationManager) {
+        [self.locationManager stopUpdatingLocation];
+        self.locationManager.delegate = nil;
+        self.locationManager = nil;
+    }
+
+    if (self.permissionLocationManager) {
+        self.permissionLocationManager.delegate = nil;
+        self.permissionLocationManager = nil;
+    }
+
+    // Clean up map view controller
+    if (self.mapViewController) {
+        [self.mapViewController.view removeFromSuperview];
+        self.mapViewController = nil;
+    }
 }
 
 - (void)layoutSubviews {
@@ -81,7 +109,7 @@
 - (void)setShowLocationUpdates:(BOOL)showLocationUpdates {
   if (_showLocationUpdates != showLocationUpdates) {
     _showLocationUpdates = showLocationUpdates;
-    //    [self updateLocationUpdates];
+    [self updateLocationUpdates];
   }
 }
 
@@ -89,41 +117,70 @@
   if (self.mapViewController) {
     return;
   }
-  [self layoutSubviews];
 
-  // Configure the Meridian SDK
-  MRConfig *config = [MRConfig new];
-  [config domainConfig].domainRegion = MRDomainRegionDefault;
-  config.applicationToken = self.appToken ?: [MMHost applicationToken];
-  config.useSimulatedLocation = YES;
-  [Meridian configure:config];
+  @try {
+    [self layoutSubviews];
+    // Configure the Meridian SDK
+    MRConfig *config = [MRConfig new];
+    [config domainConfig].domainRegion = MRDomainRegionDefault;
+    config.applicationToken = self.appToken ?: [MMHost applicationToken];
+    [Meridian configure:config];
 
-  // Set up navigation bar appearance
-  UINavigationBarAppearance *appearance =
-      [[UINavigationBarAppearance alloc] init];
-  [appearance configureWithOpaqueBackground];
-  [appearance setBackgroundColor:[UIColor colorWithRed:0.1395
-                                                 green:0.8678
-                                                  blue:0.7167
-                                                 alpha:1.0]];
-  appearance.titleTextAttributes =
-      @{NSForegroundColorAttributeName : [UIColor whiteColor]};
-  [[UINavigationBar appearance] setStandardAppearance:appearance];
-  [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
-  [UINavigationBar appearance].tintColor = [UIColor whiteColor];
-  [[UITextField
-      appearanceWhenContainedInInstancesOfClasses:@[ UISearchBar.class ]]
-      setTintColor:[[UIView alloc] init].tintColor];
+    // Set up navigation bar appearance
+    UINavigationBarAppearance *appearance =
+        [[UINavigationBarAppearance alloc] init];
+    [appearance configureWithOpaqueBackground];
+    [appearance setBackgroundColor:[UIColor colorWithRed:0.1395
+                                                   green:0.8678
+                                                    blue:0.7167
+                                                   alpha:1.0]];
+    appearance.titleTextAttributes =
+        @{NSForegroundColorAttributeName : [UIColor whiteColor]};
+    [[UINavigationBar appearance] setStandardAppearance:appearance];
+    [[UINavigationBar appearance] setScrollEdgeAppearance:appearance];
+    [UINavigationBar appearance].tintColor = [UIColor whiteColor];
+    [[UITextField
+        appearanceWhenContainedInInstancesOfClasses:@[ UISearchBar.class ]]
+        setTintColor:[[UIView alloc] init].tintColor];
 
-  // Create the map view controller
-  MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
-  CustomMapViewController *mapViewController =
-      [[CustomMapViewController alloc] initWithEditorKey:mapId];
-  self.mapViewController = mapViewController;
+    // Create the map view controller
+    MREditorKey *mapId = [MREditorKey keyForMap:self.mapId app:self.appId];
+    CustomMapViewController *mapViewController =
+        [[CustomMapViewController alloc] initWithEditorKey:mapId];
 
-  MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
-  [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
-   self.isMapInitialized = YES;
+    if (!mapViewController) {
+      [NSException raise:@"MapViewControllerCreationFailed" format:@"Failed to create map view controller"];
+    }
+
+    self.mapViewController = mapViewController;
+
+    // Set up location manager
+    self.appKey = [MREditorKey keyWithIdentifier:self.appId];
+    self.locationManager = [[MRLocationManager alloc] initWithApp:self.appKey];
+    self.locationManager.delegate = self;
+
+    // Start location updates if enabled
+    [self updateLocationUpdates];
+
+    MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+    [emitter emitCustomEvent:MMEventMapLoadFinish body:@{@"message": @"map load finished"}];
+    self.isMapInitialized = YES;
+
+  } @catch (NSException *exception) {
+    NSLog(@"[MeridianMapView] Error setting up map: %@", exception.reason);
+
+    MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+    NSDictionary *errorData = @{
+        @"error": exception.reason ?: @"Unknown error setting up map",
+        @"name": exception.name ?: @"UnknownException"
+    };
+    [emitter emitCustomEvent:MMEventMapLoadFail body:errorData];
+
+    // Also emit via the RCT event if available
+    if (self.onMapLoadFail) {
+        self.onMapLoadFail(errorData);
+    }
+  }
 }
 
 - (void)updateMapIfNeeded {
@@ -150,7 +207,7 @@
       [self addSubview:mapViewController.view];
 
       // Update location updates based on current setting
-      // [self updateLocationUpdates];
+      [self updateLocationUpdates];
 
       // Trigger loading event
       if (self.onMapLoadStart) {
@@ -249,6 +306,100 @@
 
 - (void)updateFocusIfNeeded {
   NSLog(@"updateFocusIfNeeded");
+}
+
+- (void)updateLocationUpdates {
+    if (!self.locationManager) {
+        return;
+    }
+
+    if (self.showLocationUpdates) {
+        CLAuthorizationStatus status;
+        if (@available(iOS 14.0, *)) {
+            status = self.permissionLocationManager.authorizationStatus;
+        } else {
+            status = [CLLocationManager authorizationStatus];
+        }
+
+        if (status == kCLAuthorizationStatusNotDetermined) {
+            NSLog(@"[MeridianMapView] Location permission not determined. Requesting 'When in Use' authorization.");
+            [self.permissionLocationManager requestWhenInUseAuthorization];
+        } else if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+            NSLog(@"[MeridianMapView] Starting location updates");
+            [self.locationManager startUpdatingLocation];
+        } else {
+            NSLog(@"[MeridianMapView] Location permission is denied or restricted. Status: %d", status);
+            MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+            NSDictionary *errorData = @{
+                @"error": @"Location permission denied or restricted.",
+                @"code": @(status)
+            };
+            [emitter emitCustomEvent:MMEventMapLoadFail body:errorData];
+            if (self.onMapLoadFail) {
+                self.onMapLoadFail(errorData);
+            }
+        }
+    } else {
+        NSLog(@"[MeridianMapView] Stopping location updates");
+        [self.locationManager stopUpdatingLocation];
+    }
+}
+
+#pragma mark - CLLocationManagerDelegate
+
+- (void)locationManager:(CLLocationManager *)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status {
+    NSLog(@"[MeridianMapView] Location authorization status changed to: %d", status);
+    if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+        if (self.showLocationUpdates) {
+            [self updateLocationUpdates];
+        }
+    }
+}
+
+#pragma mark - MRLocationManagerDelegate
+
+- (void)locationManager:(MRLocationManager *)manager didUpdateToLocation:(MRLocation *)location {
+    NSLog(@"[MeridianMapView] New location received: %@", location);
+
+    MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+
+    // Convert location to dictionary for React Native
+    NSDictionary *locationData = @{
+        @"point": @{
+            @"x": @(location.point.x),
+            @"y": @(location.point.y)
+        },
+        @"accuracy": @(location.accuracy),
+        @"timestamp": @([location.timestamp timeIntervalSince1970] * 1000), // Convert to milliseconds
+        @"mapKey": location.mapKey.identifier ?: @"",
+        @"providerType": @(location.providerType)
+    };
+
+    [emitter emitCustomEvent:MMEventLocationUpdated body:locationData];
+
+    // Also emit via the RCT event if available
+    if (self.onLocationUpdated) {
+        self.onLocationUpdated(locationData);
+    }
+}
+
+- (void)locationManager:(MRLocationManager *)manager didFailWithError:(NSError *)error {
+    NSLog(@"[MeridianMapView] Location error: %@", error.localizedDescription);
+
+    MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
+
+    NSDictionary *errorData = @{
+        @"error": error.localizedDescription ?: @"Unknown location error",
+        @"code": @(error.code),
+        @"domain": error.domain ?: @"Unknown"
+    };
+
+    [emitter emitCustomEvent:MMEventMapLoadFail body:errorData];
+
+    // Also emit via the RCT event if available
+    if (self.onMapLoadFail) {
+        self.onMapLoadFail(errorData);
+    }
 }
 
 - (void)showLoading {
