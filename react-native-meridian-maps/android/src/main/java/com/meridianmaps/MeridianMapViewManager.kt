@@ -92,6 +92,7 @@ class MeridianMapViewManager(private val reactContext: ReactApplicationContext) 
                         Log.d(TAG, "Configuring Meridian SDK with token")
                         Meridian.configure(context.applicationContext, appToken)
                         isSdkConfigured = true
+                        Meridian.getShared().setForceSimulatedLocation(true)
                         Log.d(TAG, "Meridian SDK configured successfully")
                     }
 
