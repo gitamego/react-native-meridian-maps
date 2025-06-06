@@ -154,6 +154,12 @@
 
     self.mapViewController = mapViewController;
 
+    // Enable user location display on the map view
+    if (self.showLocationUpdates) {
+        self.mapViewController.mapView.showsUserLocation = YES;
+        NSLog(@"[MeridianMapView] Enabled showsUserLocation on mapView");
+    }
+
     // Set up location manager
     self.appKey = [MREditorKey keyWithIdentifier:self.appId];
     self.locationManager = [[MRLocationManager alloc] initWithApp:self.appKey];
@@ -205,6 +211,12 @@
       mapViewController.view.autoresizingMask =
           UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
       [self addSubview:mapViewController.view];
+
+      // Enable user location display if needed
+      if (self.showLocationUpdates) {
+          mapViewController.mapView.showsUserLocation = YES;
+          NSLog(@"[MeridianMapView] Enabled showsUserLocation on mapView (setMapViewController)");
+      }
 
       // Update location updates based on current setting
       [self updateLocationUpdates];
@@ -327,6 +339,12 @@
         } else if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
             NSLog(@"[MeridianMapView] Starting location updates");
             [self.locationManager startUpdatingLocation];
+
+            // Also enable map view user location display
+            if (self.mapViewController.mapView) {
+                self.mapViewController.mapView.showsUserLocation = YES;
+                NSLog(@"[MeridianMapView] Enabled showsUserLocation (permission granted)");
+            }
         } else {
             NSLog(@"[MeridianMapView] Location permission is denied or restricted. Status: %d", status);
             MMEventEmitter *emitter = [self.bridge moduleForClass:[MMEventEmitter class]];
@@ -342,6 +360,12 @@
     } else {
         NSLog(@"[MeridianMapView] Stopping location updates");
         [self.locationManager stopUpdatingLocation];
+
+        // Also disable map view user location display
+        if (self.mapViewController.mapView) {
+            self.mapViewController.mapView.showsUserLocation = NO;
+            NSLog(@"[MeridianMapView] Disabled showsUserLocation");
+        }
     }
 }
 
