@@ -119,7 +119,6 @@ public class MapViewFragment extends Fragment
 
     // Set map options if desired
     MapOptions mapOptions = mapView.getOptions();
-    mapOptions.HIDE_MAP_LABEL = true;
     mapView.setOptions(mapOptions);
 
     // Set which map to load

@@ -152,6 +152,8 @@
       [NSException raise:@"MapViewControllerCreationFailed" format:@"Failed to create map view controller"];
     }
 
+    mapViewController.displaysSearchSheet = YES;
+
     self.mapViewController = mapViewController;
 
     // Set up location manager
