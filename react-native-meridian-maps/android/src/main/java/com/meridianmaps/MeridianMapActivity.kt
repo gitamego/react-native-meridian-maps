@@ -86,7 +86,6 @@ class MeridianMapActivity : AppCompatActivity() {
 
                 // Configure basic map options
                 val options = map.options
-                options.HIDE_MAP_LABEL = true
 
                 // Set options
                 map.options = options
