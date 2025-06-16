@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.Arguments;
@@ -26,6 +27,7 @@ import com.arubanetworks.meridian.maps.ClusteredMarker;
 import com.arubanetworks.meridian.maps.HighlightedMarkers;
 import com.arubanetworks.meridian.maps.MapOptions;
 import com.arubanetworks.meridian.maps.MapView;
+import com.arubanetworks.meridian.maps.MapSheetFragment;
 import com.arubanetworks.meridian.maps.Marker;
 import com.arubanetworks.meridian.maps.Transaction;
 import com.arubanetworks.meridian.maps.directions.Directions;
@@ -44,6 +46,7 @@ public class MapViewFragment extends Fragment
   private static final String TAG = "MeridianMapView";
   private EditorKey appKey;
   private EditorKey mapKey;
+  private MapSheetFragment mapSheetFragment;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -83,82 +86,85 @@ public class MapViewFragment extends Fragment
 
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    View layout = inflater.inflate(R.layout.fragment_mapview, container, false);
+    // Create MapSheetFragment using Builder pattern
+    if (mapKey != null) {
+      MapSheetFragment.Builder mapSheetBuilder = new MapSheetFragment.Builder()
+          .setMapKey(mapKey)
+          .showFriends(true);
+      
+      mapSheetFragment = mapSheetBuilder.build();
+      
+      // Add the fragment to the container
+      if (getChildFragmentManager() != null) {
+        getChildFragmentManager()
+            .beginTransaction()
+            .replace(android.R.id.content, mapSheetFragment)
+            .commit();
+      }
+      
+      // Get the MapView from the MapSheetFragment for event handling
+      if (mapSheetFragment != null && mapSheetFragment.getMapView() != null) {
+        mapView = mapSheetFragment.getMapView();
+        
+        // Set up event listeners on the MapView
+        mapView.setMapEventListener(this);
+        mapView.setDirectionsEventListener(this);
+        mapView.setMarkerEventListener(this);
+        
+        Log.d(TAG, "MapSheetFragment created and configured");
+      }
+    } else {
+      Log.e(TAG, "Cannot create MapSheetFragment: mapKey is null");
+    }
 
-    mapView = layout.findViewById(R.id.demo_mapview);
-
-    // Use the app key and map key defined in the Application class
-    // Important: These are already EditorKey objects, not strings
-    mapView.setAppKey(appKey);
-
-    // If you want to handle MapView events
-    mapView.setMapEventListener(this);
-
-    // If you want to handle directions events
-    mapView.setDirectionsEventListener(this);
-
-    // Sample of how to set the direction step colors
-    /*
-     * // Use the Default colors
-     * int activeColor = ContextCompat.getColor(getContext(),
-     * R.color.direction_active);
-     * int inactiveColor = ContextCompat.getColor(getContext(),
-     * R.color.direction_inactive);
-     * mapView.setDirectionPathOptions(activeColor, inactiveColor, 1.0f);
-     * // Sets a RED and GREEN path
-     * int redSolid = ContextCompat.getColor(getContext(),
-     * R.color.direction_red_solid);
-     * int greenTransparent = ContextCompat.getColor(getContext(),
-     * R.color.direction_green_transparent);
-     * mapView.setDirectionPathOptions(redSolid, greenTransparent, 1.0f);
-     */
-
-    // If you want to handle marker events
-    Log.d("MeridianMapView", "Setting marker event listener");
-    mapView.setMarkerEventListener(this);
-
-    // Set map options if desired
-    MapOptions mapOptions = mapView.getOptions();
-    mapView.setOptions(mapOptions);
-
-    // Set which map to load
-    // It is recommended to do this after setting the map options
-    // Important: MAP_KEY is already an EditorKey object, not a string
-    mapView.setMapKey(mapKey);
-
-    // Demonstration of how to customize the mapView's locationMarker:
-    // change default color for Bluetooth to orange
-    // modify the name
-    // modify the details
-    // alternatively... hide the call-out entirely
-    /*
-     * LocationMarker lm = mapView.getLocationMarker();
-     * lm.setCustomColor(LocationMarker.State.BLUETOOTH, 0xffff7700);
-     * lm.setName("Current Location Label");
-     * lm.setDetails("Details");
-     * //lm.setShowsCallout(false);
-     */
-
-    return layout;
+    // Create a container view for the fragment
+    FrameLayout container_view = new FrameLayout(getContext());
+    container_view.setId(android.R.id.content);
+    container_view.setLayoutParams(new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT));
+    
+    return container_view;
   }
 
   @Override
   public void onPause() {
     super.onPause();
-    mapView.onPause();
+    if (mapView != null) {
+      mapView.onPause();
+    }
+    if (mapSheetFragment != null) {
+      mapSheetFragment.onPause();
+    }
   }
 
   @Override
   public void onResume() {
     super.onResume();
-    mapView.onResume();
+    if (mapView != null) {
+      mapView.onResume();
+    }
+    if (mapSheetFragment != null) {
+      mapSheetFragment.onResume();
+    }
   }
 
   @Override
   public void onDestroy() {
     super.onDestroy();
     // Clean up memory.
-    mapView.onDestroy();
+    if (mapView != null) {
+      mapView.onDestroy();
+    }
+    if (mapSheetFragment != null) {
+      // Remove the child fragment
+      if (getChildFragmentManager() != null) {
+        getChildFragmentManager()
+            .beginTransaction()
+            .remove(mapSheetFragment)
+            .commitAllowingStateLoss();
+      }
+    }
   }
 
   //
@@ -495,8 +501,15 @@ public class MapViewFragment extends Fragment
       } catch (Exception e) {
         Log.e(TAG, "Error during performNativeUpdate: " + e.getMessage(), e);
       }
+    } else if (mapSheetFragment != null && mapSheetFragment.getMapView() != null) {
+      try {
+        Log.d(TAG, "Performing native update via MapSheetFragment");
+        mapSheetFragment.getMapView().invalidate();
+      } catch (Exception e) {
+        Log.e(TAG, "Error during performNativeUpdate via MapSheetFragment: " + e.getMessage(), e);
+      }
     } else {
-      Log.w(TAG, "performNativeUpdate called but mapView is null");
+      Log.w(TAG, "performNativeUpdate called but neither mapView nor mapSheetFragment is available");
     }
   }
 
@@ -530,8 +543,10 @@ public class MapViewFragment extends Fragment
   public void setRoute(com.arubanetworks.meridian.maps.directions.Route route) {
     if (mapView != null) {
       mapView.setRoute(route);
+    } else if (mapSheetFragment != null && mapSheetFragment.getMapView() != null) {
+      mapSheetFragment.getMapView().setRoute(route);
     } else {
-      Log.w(TAG, "mapView is null. Cannot set route.");
+      Log.w(TAG, "Neither mapView nor mapSheetFragment is available. Cannot set route.");
     }
   }
 
