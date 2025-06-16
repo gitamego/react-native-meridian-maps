@@ -86,7 +86,6 @@ public class MapViewFragment extends Fragment
 
   @Override
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-    // Create MapSheetFragment using Builder pattern
     if (mapKey != null) {
       MapSheetFragment.Builder mapSheetBuilder = new MapSheetFragment.Builder()
           .setMapKey(mapKey)
@@ -94,7 +93,6 @@ public class MapViewFragment extends Fragment
       
       mapSheetFragment = mapSheetBuilder.build();
       
-      // Add the fragment to the container
       if (getChildFragmentManager() != null) {
         getChildFragmentManager()
             .beginTransaction()
@@ -102,22 +100,17 @@ public class MapViewFragment extends Fragment
             .commit();
       }
       
-      // Get the MapView from the MapSheetFragment for event handling
       if (mapSheetFragment != null && mapSheetFragment.getMapView() != null) {
         mapView = mapSheetFragment.getMapView();
         
-        // Set up event listeners on the MapView
         mapView.setMapEventListener(this);
         mapView.setDirectionsEventListener(this);
         mapView.setMarkerEventListener(this);
-        
-        Log.d(TAG, "MapSheetFragment created and configured");
       }
     } else {
       Log.e(TAG, "Cannot create MapSheetFragment: mapKey is null");
     }
 
-    // Create a container view for the fragment
     FrameLayout container_view = new FrameLayout(getContext());
     container_view.setId(android.R.id.content);
     container_view.setLayoutParams(new FrameLayout.LayoutParams(
