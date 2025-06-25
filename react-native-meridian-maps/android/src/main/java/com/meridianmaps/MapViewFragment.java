@@ -203,6 +203,7 @@ public class MapViewFragment extends Fragment
 
   @Override
   public void onMapRenderFinish() {
+    Log.d(TAG, "onMapRenderFinish");
     sendEvent("onMapRenderFinish", null);
   }
 
@@ -236,14 +237,23 @@ public class MapViewFragment extends Fragment
   public boolean onDirectionsClick(Marker marker) {
     sendEvent("onDirectionsClick", null);
     if (getActivity() != null) {
-      Placemark p = mapView.getAssociatedPlacemark(marker);
-      if (p != null) {
-        startDirections(DirectionsDestination.forPlacemarkKey(p.getKey()));
+      MapView currentMapView = mapView;
+      if (currentMapView == null && mapSheetFragment != null) {
+        currentMapView = mapSheetFragment.getMapView();
+      }
+
+      if (currentMapView != null) {
+        Placemark p = currentMapView.getAssociatedPlacemark(marker);
+        if (p != null) {
+          startDirections(DirectionsDestination.forPlacemarkKey(p.getKey()));
+        } else {
+          new AlertDialog.Builder(getActivity())
+              .setMessage("Directions only implemented for placemarks.")
+              .setPositiveButton("OK", null)
+              .show();
+        }
       } else {
-        new AlertDialog.Builder(getActivity())
-            .setMessage("Directions only implemented for placemarks.")
-            .setPositiveButton("OK", null)
-            .show();
+        Log.e(TAG, "Cannot get placemark: mapView is null");
       }
     }
     return true;
@@ -294,10 +304,17 @@ public class MapViewFragment extends Fragment
 
     // For all other markers - try to show callout
     try {
-      // Get the associated placemark if needed
-      Placemark placemark = mapView.getAssociatedPlacemark(marker);
-      if (placemark != null) {
-        sendEvent("onMarkerSelect", event);
+      MapView currentMapView = mapView;
+      if (currentMapView == null && mapSheetFragment != null) {
+        currentMapView = mapSheetFragment.getMapView();
+      }
+
+      if (currentMapView != null) {
+        // Get the associated placemark if needed
+        Placemark placemark = currentMapView.getAssociatedPlacemark(marker);
+        if (placemark != null) {
+          sendEvent("onMarkerSelect", event);
+        }
       }
     } catch (Exception e) {
       Log.e(TAG, "Error handling marker selection", e);
@@ -346,7 +363,15 @@ public class MapViewFragment extends Fragment
     if (getActivity() == null) {
       return;
     }
-    mapView.onDirectionsRequestStart();
+
+    MapView currentMapView = mapView;
+    if (currentMapView == null && mapSheetFragment != null) {
+      currentMapView = mapSheetFragment.getMapView();
+    }
+    
+    if (currentMapView != null) {
+      currentMapView.onDirectionsRequestStart();
+    }
 
     // Lets see if we can get the users location
     // Note: This method expects an EditorKey, which is what Application.APP_KEY
@@ -515,13 +540,6 @@ public class MapViewFragment extends Fragment
 
     Log.d(TAG, "Starting directions to destination: " + destination);
 
-    // Check if we have a valid map view
-    if (mapView == null) {
-      Log.e(TAG, "Cannot start directions: mapView is null");
-      sendEvent("onDirectionsError", null);
-      return;
-    }
-
     // Check if we have a valid context
     if (getContext() == null) {
       Log.e(TAG, "Cannot start directions: context is null");
@@ -529,7 +547,23 @@ public class MapViewFragment extends Fragment
       return;
     }
 
-    // Start the directions
+    MapView currentMapView = mapView;
+    if (currentMapView == null && mapSheetFragment != null) {
+      currentMapView = mapSheetFragment.getMapView();
+      if (currentMapView != null) {
+        mapView = currentMapView;
+        mapView.setMapEventListener(this);
+        mapView.setDirectionsEventListener(this);
+        mapView.setMarkerEventListener(this);
+      }
+    }
+
+    if (currentMapView == null) {
+      Log.e(TAG, "Cannot start directions: neither mapView nor mapSheetFragment.getMapView() is available");
+      sendEvent("onDirectionsError", null);
+      return;
+    }
+
     startDirections(destination);
   }
 
