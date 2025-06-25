@@ -553,11 +553,12 @@ private fun createMapFragment() {
 
         activity.runOnUiThread {
             val fragment = mapFragment ?: return@runOnUiThread
+            val containerView = this@MeridianMapContainerView
 
             val appKey = EditorKey(appId ?: return@runOnUiThread)
             val mapKey = EditorKey.forMap(mapId ?: return@runOnUiThread, appKey.id)
             val placemarkKey = EditorKey.forPlacemark(placemarkId, mapKey)
-
+            
             val destination = DirectionsDestination.forPlacemarkKey(placemarkKey)
 
             // Attempt to get the current location
@@ -597,13 +598,14 @@ private fun createMapFragment() {
 
                 override fun onError(error: LocationRequest.ErrorType) {
                     Log.e(TAG, "Error obtaining current location: $error")
-                    // Optionally, prompt user to select starting location
-                    val intent = SearchActivity.createIntent(activity, appKey)
-                    activity.startActivityForResult(intent, 42)
+                    // Delegate to MapViewFragment which handles SearchActivity properly
+                    fragment.startDirectionsForDestination(destination)
                 }
             })
         }
     }
+
+
 
     /**
      * Removes the map fragment
@@ -628,7 +630,7 @@ private fun createMapFragment() {
     /**
      * Send an event to React Native
      */
-    private fun sendEvent(eventName: String, params: WritableMap?) {
+    internal fun sendEvent(eventName: String, params: WritableMap?) {
         try {
             themedContext.getJSModule(RCTEventEmitter::class.java)
                 .receiveEvent(id, eventName, params)
