@@ -237,7 +237,6 @@ public class MapViewFragment extends Fragment
   public boolean onDirectionsClick(Marker marker) {
     sendEvent("onDirectionsClick", null);
     if (getActivity() != null) {
-      // Get current mapView with fallback
       MapView currentMapView = mapView;
       if (currentMapView == null && mapSheetFragment != null) {
         currentMapView = mapSheetFragment.getMapView();
@@ -305,7 +304,6 @@ public class MapViewFragment extends Fragment
 
     // For all other markers - try to show callout
     try {
-      // Get current mapView with fallback
       MapView currentMapView = mapView;
       if (currentMapView == null && mapSheetFragment != null) {
         currentMapView = mapSheetFragment.getMapView();
@@ -366,7 +364,6 @@ public class MapViewFragment extends Fragment
       return;
     }
 
-    // Get current mapView with fallback
     MapView currentMapView = mapView;
     if (currentMapView == null && mapSheetFragment != null) {
       currentMapView = mapSheetFragment.getMapView();
@@ -550,28 +547,23 @@ public class MapViewFragment extends Fragment
       return;
     }
 
-    // Try to get mapView - with fallback to mapSheetFragment
     MapView currentMapView = mapView;
     if (currentMapView == null && mapSheetFragment != null) {
       currentMapView = mapSheetFragment.getMapView();
-      // Update our reference for future use
       if (currentMapView != null) {
         mapView = currentMapView;
-        // Set up listeners if they weren't set before
         mapView.setMapEventListener(this);
         mapView.setDirectionsEventListener(this);
         mapView.setMarkerEventListener(this);
       }
     }
 
-    // Check if we have a valid map view
     if (currentMapView == null) {
       Log.e(TAG, "Cannot start directions: neither mapView nor mapSheetFragment.getMapView() is available");
       sendEvent("onDirectionsError", null);
       return;
     }
 
-    // Start the directions
     startDirections(destination);
   }
 
