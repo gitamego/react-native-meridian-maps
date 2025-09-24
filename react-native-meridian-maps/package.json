@@ -1,7 +1,7 @@
 {
   "name": "react-native-meridian-maps",
-  "version": "0.1.24",
-  "main": "./lib/module/index.js",
+  "version": "0.1.25",
+  "main": "./src/index.tsx",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
@@ -36,7 +36,7 @@
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
-    "prepare": "bob build",
+    "prepare": "tsc -p tsconfig.build.json",
     "release": "release-it"
   },
   "keywords": [
@@ -155,9 +155,6 @@
       "javaPackageName": "com.meridianmaps"
     },
     "ios": {
-      "modulesProvider": {
-        "MeridianMaps": "MeridianMaps"
-      },
       "componentProvider": {
         "MeridianMapView": "MeridianMapViewManager"
       }
