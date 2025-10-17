@@ -11,9 +11,9 @@ Pod::Spec.new do |s|
   s.license                  = package["license"]
   s.author                   = package["author"]
   # Use CocoaPods Meridian SDK instead of a vendored XCFramework
-  s.dependency               'MeridianSDK'
+  s.dependency               'MeridianSDK', '~> 11.3.0'
 
-  s.platform                 = :ios, "15.1"
+  s.platform                 = :ios, "16"
 
   s.source                   = { :git => "https://github.com/gitamego/react-native-meridian-maps.git", :tag => "#{s.version}" }
 
