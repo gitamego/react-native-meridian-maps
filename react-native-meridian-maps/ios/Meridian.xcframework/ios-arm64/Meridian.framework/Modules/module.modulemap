@@ -1,6 +1,0 @@
-framework module Meridian {
-  umbrella header "Meridian.h"
-  export *
-
-  module * { export * }
-}
