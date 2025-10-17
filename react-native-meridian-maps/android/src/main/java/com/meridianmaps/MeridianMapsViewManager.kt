@@ -26,7 +26,6 @@ class MeridianMapsViewManager : SimpleViewManager<MeridianMapContainer>() {
   override fun getCommandsMap(): MutableMap<String, Int> = MapBuilder.of("startRoute", 1)
 
   override fun receiveCommand(view: MeridianMapContainer, commandId: Int, args: ReadableArray?) {
-    Log.d(view.TAG, "teeest receiveCommand: ${commandId}")
     if (commandId == 1) {
       val id = args?.getString(0) ?: return
       view.startRoute(id)

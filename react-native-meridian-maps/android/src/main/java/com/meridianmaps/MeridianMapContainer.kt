@@ -133,7 +133,6 @@ class MeridianMapContainer @JvmOverloads constructor(
 
   fun startRoute(placemarkId: String) {
     val frag = fragment ?: return
-    Log.d(TAG, "teeest" + placemarkId)
     runCatching {
       val target = frag.mapView.placemarks.firstOrNull { it.key.id == placemarkId }
       if (target != null) frag.startDirections(DirectionsDestination.forPlacemarkKey(target.key))
