@@ -1,6 +1,6 @@
 {
   "name": "react-native-meridian-maps",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "main": "./src/index.tsx",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -157,7 +157,8 @@
     "ios": {
       "componentProvider": {
         "MeridianMapView": "MeridianMapViewManager"
-      }
+      },
+      "appDelegatePackageName": "MeridianMaps"
     }
   },
   "create-react-native-library": {

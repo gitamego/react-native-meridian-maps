@@ -30,44 +30,6 @@
 
 
 
-    <application>
-
-        <!-- We don't set android:name here to avoid conflicts with the host app -->
-
-
-
-        <activity
-
-            android:name=".MeridianMapActivity"
-
-            android:exported="false"
-
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-            <!-- Required for search when using MapSheetFragment -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEARCH" />
-            </intent-filter>
-
-            <!-- Required for search when using MapSheetFragment -->
-            <meta-data
-                android:name="android.app.searchable"
-                android:resource="@xml/searchable" />
-        </activity>
-
-
-
-        <activity
-
-            android:name=".MeridianMapTestActivity"
-
-            android:label="Meridian Test"
-
-            android:theme="@style/Theme.AppCompat.Light"
-
-            android:exported="false"/>
-
-
-
-    </application>
+    <application />
 
 </manifest>
