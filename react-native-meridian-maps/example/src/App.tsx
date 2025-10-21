@@ -121,6 +121,7 @@ export default function App() {
     setActiveKey('mapLoadFinish');
     console.log('Map load finish');
   };
+  // multiple rapid calls on init to this function -> therefore debounce is used
   const handleMapTransformChange = debounce(() => {
     setActiveKey('mapTransformChange');
     console.log('Map transform change');
