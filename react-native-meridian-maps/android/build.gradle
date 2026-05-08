@@ -87,7 +87,11 @@ def kotlin_version = getExtOrDefault("kotlinVersion")
 dependencies {
   implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  implementation(files("$projectDir/libs/meridian-11.2.0.aar"))
+  // Use `api` so the Meridian AAR is propagated to consumer apps via RN
+  // autolinking — consumers don't need to re-add the AAR in their own
+  // app/build.gradle. (`implementation` keeps the dep hidden across the
+  // module boundary; `api` exposes it.)
+  api(files("$projectDir/libs/meridian-12.0.0.aar"))
 
   implementation 'com.android.volley:volley:1.2.1'
   implementation 'com.squareup:otto:1.3.8'
@@ -98,6 +102,11 @@ dependencies {
   implementation 'com.google.android.gms:play-services-location:21.0.1'
   implementation 'org.greenrobot:eventbus:3.3.1'
   implementation 'ch.acra:acra-mail:5.11.3'
+  // Required at runtime by MapSheetFragment's PlacemarkBottomSheet for
+  // loading placemark images. The SDK README under android/libs lists this
+  // as a required dependency for MapSheetFragment; without it the app
+  // crashes with NoClassDefFoundError the moment the sheet tries to render.
+  implementation 'com.github.bumptech.glide:glide:4.16.0'
 }
 
 react {

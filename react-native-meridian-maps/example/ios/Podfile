@@ -7,7 +7,9 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# MeridianSDK 12.0.0 requires iOS 16.0+. Our MeridianMaps.podspec also pins
+# :ios, "16". Override RN's default min_ios_version_supported (15.1 for RN 0.79).
+platform :ios, '16.0'
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
@@ -33,5 +35,21 @@ target 'MeridianMapsExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Xcode 16's Clang evaluates fmt's `consteval` format-string constructor
+    # too strictly and fails to build RN 0.79's RCT-Folly. Disabling
+    # FMT_USE_CONSTEVAL turns those constructors back into constexpr, which
+    # is what older Clangs effectively did. Safe to remove once RN ships a
+    # newer fmt or the upstream consteval implementation is relaxed.
+    fmt_base = File.join(installer.sandbox.pod_dir('fmt'), 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      patched = content.gsub(/^#\s*define FMT_USE_CONSTEVAL 1$/, '# define FMT_USE_CONSTEVAL 0')
+      if patched != content
+        File.chmod(0644, fmt_base)
+        File.write(fmt_base, patched)
+        puts "Patched fmt: disabled FMT_USE_CONSTEVAL"
+      end
+    end
   end
 end

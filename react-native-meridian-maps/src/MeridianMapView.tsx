@@ -1,11 +1,8 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
 import {
   requireNativeComponent,
   UIManager,
   type ViewStyle,
   StyleSheet,
-  View,
-  findNodeHandle,
 } from 'react-native';
 
 type MeridianMapViewProps = {
@@ -13,6 +10,12 @@ type MeridianMapViewProps = {
   appId: string;
   mapId: string;
   appToken: string;
+  // Optional placemark id. When set, the native SDK renders the map already
+  // zoomed in on this placemark with its callout ("Get Directions") open
+  // and no auto-routing — the user taps Get Directions to start navigation.
+  // The consumer must keep mapId consistent with the placemark's floor;
+  // the SDK does not auto-resolve floors.
+  placemarkID?: string;
 };
 
 export const ComponentName = 'MeridianMapView';
@@ -20,55 +23,15 @@ export const ComponentName = 'MeridianMapView';
 const NativeMeridianMapView =
   requireNativeComponent<MeridianMapViewProps>(ComponentName);
 
-export interface MeridianMapViewComponentRef {
-  startRoute: (placemarkID: string) => void;
-}
-
-export const MeridianMapView = forwardRef<
-  MeridianMapViewComponentRef,
-  MeridianMapViewProps
->((props, ref) => {
-  const nativeMapRef = useRef<any>(null);
-  const combinedStyle = { ...styles.mapView, ...(props.style || {}) };
-
-  const startRoute = (placemarkID: string) => {
-    const reactTag = findNodeHandle(nativeMapRef.current);
-    if (!reactTag) return;
-    const commandId =
-      UIManager.getViewManagerConfig(ComponentName)?.Commands?.startRoute;
-    if (commandId === undefined) return;
-    UIManager.dispatchViewManagerCommand(reactTag, commandId, [placemarkID]);
-  };
-
-  useImperativeHandle(ref, () => ({ startRoute }));
-
-  return (
-    <View style={styles.container}>
-      {
-        // @ts-ignore - The native component accepts a ref prop
-      }
-      <NativeMeridianMapView
-        ref={nativeMapRef}
-        {...props}
-        style={combinedStyle}
-        appId={props.appId}
-        mapId={props.mapId}
-        appToken={props.appToken}
-      />
-    </View>
-  );
-});
+export const MeridianMapView = (props: MeridianMapViewProps) => (
+  <NativeMeridianMapView
+    {...props}
+    style={{ ...styles.mapView, ...(props.style ?? {}) }}
+  />
+);
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    flex: 1,
-  },
-  mapView: {
-    flex: 1,
-    height: '100%',
-    width: '100%',
-  },
+  mapView: { flex: 1 },
 });
 
 export const isAvailable = async (): Promise<boolean> =>

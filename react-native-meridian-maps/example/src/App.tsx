@@ -1,194 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
   Text,
   View,
-  NativeModules,
   Platform,
   UIManager,
-  Alert,
   Button,
 } from 'react-native';
-import {
-  MeridianMapView,
-  type MeridianMapViewComponentRef,
-} from 'react-native-meridian-maps';
-import debounce from 'lodash/debounce';
-import { ComponentName } from '../../src/MeridianMapView';
+import { MeridianMaps, MeridianMapView } from 'react-native-meridian-maps';
+
+// Two known-good test maps. These belong to the example app permanently —
+// real consumers (e.g. the HPE Discover 2026 app) bring their own creds.
+// Switching between MAP_A and MAP_B at runtime exercises the reactive
+// `mapId`/`appId` props (Issue #1a fix).
+type MapCreds = {
+  appId: string;
+  mapId: string;
+  appToken: string;
+  placemarkId: string;
+  label: string;
+};
+
+// Two floors of the same Sample Building location. Switching between them
+// exercises MRMapView.setMapKey() (iOS) / MapView.setMapKey() (Android) —
+// the live floor-swap path that the consumer hits in production. The first
+// time a different `appId` is supplied, the wrapper rebuilds the map VC /
+// fragment instead.
+const SAMPLE_LOCATION_TOKEN =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk';
+const SAMPLE_LOCATION_ID = '5809862863224832';
+
+const MAP_A: MapCreds = {
+  appId: SAMPLE_LOCATION_ID,
+  mapId: '5668600916475904', // Mall (level 1)
+  appToken: SAMPLE_LOCATION_TOKEN,
+  placemarkId: '5668600916475904_5693417237512192',
+  label: 'Mall (L1)',
+};
+
+const MAP_B: MapCreds = {
+  appId: SAMPLE_LOCATION_ID,
+  mapId: '5700305828184064', // Store (level 2)
+  appToken: SAMPLE_LOCATION_TOKEN,
+  placemarkId: '',
+  label: 'Store (L2)',
+};
 
 export default function App() {
   const [debugInfo, setDebugInfo] = useState('');
-  const [mapError, setMapError] = useState<string | null>(null);
-  const [activeKey, setActiveKey] = useState('');
-  const mapViewRef = useRef<MeridianMapViewComponentRef>(null);
-  // Handle map errors
-  const handleMapError = (event: any) => {
-    const errorMsg = event.nativeEvent?.error || 'Unknown map error';
-    console.error('Map error:', errorMsg);
-    setMapError(errorMsg);
-    Alert.alert('Map Error', errorMsg);
-  };
-
-  // Check if the module is available
-  const checkAvailability = () => {
-    try {
-      // Check native modules
-      const modules = Object.keys(NativeModules);
-      const hasModule =
-        Platform.OS === 'ios'
-          ? modules.includes(ComponentName)
-          : modules.includes('MeridianMaps');
-
-      // Check view manager
-      let viewManagerInfo = 'ViewManager: ';
-      try {
-        const hasViewManager =
-          UIManager.getViewManagerConfig('MeridianMapView') != null;
-        viewManagerInfo += hasViewManager ? 'Available' : 'Not Available';
-      } catch (e) {
-        viewManagerInfo += 'Error checking';
-      }
-
-      setDebugInfo(
-        `Modules: ${modules.join(', ')}\n` +
-          `Has MeridianMaps: ${hasModule}\n` +
-          viewManagerInfo +
-          `\nPlatform: ${Platform.OS} (${Platform.Version})`
-      );
-
-      return hasModule;
-    } catch (err: any) {
-      console.error('Error checking availability:', err);
-      setDebugInfo(`Error: ${err.message || String(err)}`);
-      return false;
-    }
-  };
+  const [active, setActive] = useState<MapCreds>(MAP_A);
+  const [usePreselect, setUsePreselect] = useState(false);
 
   useEffect(() => {
-    checkAvailability();
+    try {
+      const hasViewManager =
+        UIManager.getViewManagerConfig('MeridianMapView') != null;
+      setDebugInfo(
+        `ViewManager: ${hasViewManager ? 'Available' : 'Not Available'}\n` +
+          `Platform: ${Platform.OS} (${Platform.Version})`
+      );
+    } catch (err) {
+      setDebugInfo(`Error: ${(err as Error).message}`);
+    }
   }, []);
 
-  const [height, setHeight] = useState(500);
-
-  const rerenderMap = () => setHeight((prev) => (prev == 500 ? 500.5 : 500));
-
+  // Pre-warm beacon ranging at app start so the blue dot resolves faster
+  // when the map mounts. Permission prompts (Bluetooth + Location) happen
+  // here rather than waiting for the map view.
   useEffect(() => {
-    if (activeKey === 'mapTransformChange') {
-      setTimeout(() => {
-        rerenderMap();
-      }, 800);
-      return;
-    }
-    setTimeout(() => {
-      rerenderMap();
-    }, 100);
-  }, [activeKey]);
+    MeridianMaps.warmupLocation(
+      SAMPLE_LOCATION_TOKEN,
+      SAMPLE_LOCATION_ID
+    ).catch((err) => console.warn('warmupLocation failed:', err));
+    return () => {
+      MeridianMaps.stopWarmup().catch(() => {});
+    };
+  }, []);
 
-  const handleLocationUpdate = (location: any) => {
-    setActiveKey('locationUpdate');
-    console.log('Location updated:', location);
-  };
-
-  const handleMarkerSelect = (marker: any) => {
-    setActiveKey('markerSelect');
-    console.log('Marker selected:', marker);
-  };
-
-  const handleMarkerDeselect = (marker: any) => {
-    setActiveKey('markerDeselect');
-    console.log('Marker deselected:', marker);
-  };
-
-  const handleMapLoadStart = () => {
-    setActiveKey('mapLoadStart');
-    console.log('Map load start');
-  };
-
-  const handleOnDirectionsCalculated = () => {
-    setActiveKey('onDirectionsCalculated');
-    console.log('On directions calculated');
-  };
-  const handleCalloutClick = () => {
-    setActiveKey('calloutClick');
-    console.log('Callout click');
-  };
-  const handleError = () => {
-    setActiveKey('error');
-    console.log('Error');
-  };
-  const handleMapLoadFinish = () => {
-    setActiveKey('mapLoadFinish');
-    console.log('Map load finish');
-  };
-  const handleMapTransformChange = debounce(() => {
-    setActiveKey('mapTransformChange');
-    console.log('Map transform change');
-  }, 50);
-  const handleDirectionsClosed = () => {
-    setActiveKey('directionsClosed');
-    console.log('Directions closed');
-  };
-  const handleDirectionsStart = () => {
-    setActiveKey('directionsStart');
-    console.log('Directions start');
-  };
-  const handleDirectionsError = () => {
-    setActiveKey('directionsError');
-    console.log('Directions error');
-  };
-  const handleRouteStepIndexChange = () => {
-    setActiveKey('routeStepIndexChange');
-    console.log('Route step index change');
-  };
-  const handleDirectionsReroute = () => {
-    setActiveKey('directionsReroute');
-    console.log('Directions reroute');
-  };
-  const handleOrientationUpdated = () => {
-    setActiveKey('orientationUpdated');
-    console.log('Orientation updated');
-  };
-  const handleUseAccessiblePathsChange = () => {
-    setActiveKey('useAccessiblePathsChange');
-    console.log('Use accessible paths change');
-  };
-
-  const handleMarkerForSelectedMarker = () => {
-    setActiveKey('markerForSelectedMarker');
-    console.log('Marker for selected marker');
-  };
-
-  const handleDirectionsClick = () => {
-    setActiveKey('directionsClick');
-    console.log('Directions click');
-  };
-
-  const handleDirectionsRequestComplete = () => {
-    setActiveKey('directionsRequestComplete');
-    console.log('Directions request complete');
-  };
-
-  const handleDirectionsRequestError = () => {
-    setActiveKey('directionsRequestError');
-    console.log('Directions request error');
-  };
-
-  const handleDirectionsRequestCanceled = () => {
-    setActiveKey('directionsRequestCanceled');
-    console.log('Directions request canceled');
-  };
-
-  const handleSearchActivityStarted = () => {
-    setActiveKey('searchActivityStarted');
-    console.log('Search activity started');
-  };
-
-  const handleStartRoute = () => {
-    const placemarkID = '5668600916475904_5693417237512192'; // Replace with actual placemark ID
-    // 5668600916475904_5693417237512192
-    // 5668600916475904_5709068098338816
-    mapViewRef.current?.startRoute(placemarkID);
+  const handleSwitchMap = () => {
+    setActive((curr) => (curr === MAP_A ? MAP_B : MAP_A));
   };
 
   return (
@@ -196,54 +87,32 @@ export default function App() {
       <View style={styles.scrollContent}>
         <Text style={styles.title}>Meridian Maps Test</Text>
 
-        {/* Debug Info */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>{debugInfo}</Text>
+          <Text style={styles.infoText}>
+            Active: {active.label} · mapId {active.mapId}
+          </Text>
         </View>
 
-        <Button title="Route to Casio" onPress={handleStartRoute} />
+        <View style={styles.buttonRow}>
+          <Button title="Plain map" onPress={() => setUsePreselect(false)} />
+          <Button title="Preselect" onPress={() => setUsePreselect(true)} />
+          <Button title="Switch Map" onPress={handleSwitchMap} />
+        </View>
 
-        <View style={[styles.mapContainer, { height }]}>
-          {/* <View style={[styles.mapContainer]} key={activeKey}> */}
-          <Text style={styles.mapLabel}>Meridian Map</Text>
-          {mapError ? (
-            <Text style={styles.errorText}>Error: {mapError}</Text>
-          ) : (
-            <MeridianMapView
-              ref={mapViewRef}
-              style={styles.map}
-              appId="5809862863224832"
-              mapId="5668600916475904"
-              appToken="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoxNTc5MzAwMjM4LCJ2YWx1ZSI6IjJmOWIwMjY1YmQ2NzZmOTIxNjQ5YTgxNDBlNGZjN2I4YWM0YmYyNTcifQ.pxYOq2oyyudM3ta_bcij4R_hY1r3XG6xIDATYDW4zIk"
-              showLocationUpdates={true}
-              // appId="4548039820312576"
-              // mapId="5460994577530880"
-              // appToken="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ2YWx1ZSI6IjVlNjliZDg4NGI1OGUwYzBlN2ExZmVlOTZiZWZkZmRhZDg5NDE0YzIiLCJ0IjoxNzM3OTkwOTE2fQ.0aW0W0JM3dDcLPH1ttn6KPoZyro_ZqTk1OvisC_rbWY"
-              onMapLoadFail={handleMapError}
-              onLocationUpdated={handleLocationUpdate}
-              onMarkerDeselect={handleMarkerDeselect}
-              onMarkerSelect={handleMarkerSelect}
-              onMapLoadStart={handleMapLoadStart}
-              onMapLoadFinish={handleMapLoadFinish}
-              markerForSelectedMarker={handleMarkerForSelectedMarker}
-              onCalloutClick={handleCalloutClick}
-              onMapTransformChange={handleMapTransformChange}
-              onError={handleError}
-              onDirectionsClick={handleDirectionsClick}
-              onDirectionsClosed={handleDirectionsClosed}
-              onDirectionsStart={handleDirectionsStart}
-              onDirectionsError={handleDirectionsError}
-              onRouteStepIndexChange={handleRouteStepIndexChange}
-              onDirectionsReroute={handleDirectionsReroute}
-              onOrientationUpdated={handleOrientationUpdated}
-              onUseAccessiblePathsChange={handleUseAccessiblePathsChange}
-              onSearchActivityStarted={handleSearchActivityStarted}
-              onDirectionsCalculated={handleOnDirectionsCalculated}
-              onDirectionsRequestComplete={handleDirectionsRequestComplete}
-              onDirectionsRequestError={handleDirectionsRequestError}
-              onDirectionsRequestCanceled={handleDirectionsRequestCanceled}
-            />
-          )}
+        <View style={styles.mapContainer}>
+          <Text style={styles.mapLabel}>Meridian Map — {active.label}</Text>
+          <MeridianMapView
+            style={styles.map}
+            appId={active.appId}
+            mapId={active.mapId}
+            appToken={active.appToken}
+            placemarkID={
+              usePreselect && active.placemarkId
+                ? active.placemarkId
+                : undefined
+            }
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -256,8 +125,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   scrollContent: {
+    flex: 1,
     padding: 16,
-    marginBottom: 100,
   },
   title: {
     fontSize: 22,
@@ -281,16 +150,14 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   mapContainer: {
+    flex: 1,
     width: '100%',
-    height: 500,
     borderWidth: 2,
     borderColor: '#E91E63',
     borderRadius: 8,
-    // overflow: 'hidden',
-    marginTop: 16,
   },
   mapLabel: {
     padding: 8,
@@ -301,10 +168,5 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
     width: '100%',
-  },
-  errorText: {
-    color: '#E91E63',
-    padding: 16,
-    textAlign: 'center',
   },
 });

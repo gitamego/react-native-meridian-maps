@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   s.license                  = package["license"]
   s.author                   = package["author"]
   # Use CocoaPods Meridian SDK instead of a vendored XCFramework
-  s.dependency               'MeridianSDK', '~> 11.3.0'
+  s.dependency               'MeridianSDK', '~> 12.0.0'
 
   s.platform                 = :ios, "16"
 

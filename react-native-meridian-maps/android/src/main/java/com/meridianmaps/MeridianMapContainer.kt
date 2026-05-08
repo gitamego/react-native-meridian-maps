@@ -1,20 +1,22 @@
 package com.meridianmaps
 
 import android.content.Context
+import android.graphics.Matrix
+import android.graphics.PointF
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
-import android.os.Handler
-import android.os.Looper
-import android.view.Choreographer
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
-import com.arubanetworks.meridian.Meridian
 import com.arubanetworks.meridian.editor.EditorKey
+import com.arubanetworks.meridian.location.MeridianLocation
+import com.arubanetworks.meridian.location.MeridianOrientation
+import com.arubanetworks.meridian.maps.MapInfo
 import com.arubanetworks.meridian.maps.MapSheetFragment
-import com.arubanetworks.meridian.maps.directions.DirectionsDestination
+import com.arubanetworks.meridian.maps.MapView
 import com.facebook.react.bridge.ReactContext
+
 
 class MeridianMapContainer @JvmOverloads constructor(
   context: Context,
@@ -25,14 +27,20 @@ class MeridianMapContainer @JvmOverloads constructor(
   private var appId: String? = null
   private var mapId: String? = null
   private var appToken: String? = null
+  private var placemarkID: String? = null
+  private var lastAppliedPlacemarkID: String? = null
 
   private var fragment: MapSheetFragment? = null
   private val containerId: Int = View.generateViewId()
   private var pendingLoad: Boolean = false
-  private var testButtonAdded: Boolean = false
-  private var globalLayoutLogCount: Int = 0
-  private val uiHandler = Handler(Looper.getMainLooper())
-  val TAG = "MeridianMapContainer"
+
+  private val measureAndLayout = Runnable {
+    measure(
+      MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
+    )
+    layout(left, top, right, bottom)
+  }
 
   init {
     val container = FrameLayout(context)
@@ -41,48 +49,127 @@ class MeridianMapContainer @JvmOverloads constructor(
 
     addOnAttachStateChangeListener(object : OnAttachStateChangeListener {
       override fun onViewAttachedToWindow(v: View) {
-        if (pendingLoad) tryLoad()
+        if (pendingLoad) scheduleSync()
       }
       override fun onViewDetachedFromWindow(v: View) {}
     })
   }
 
+  // RN dispatches prop setters one at a time, so a synchronous syncMap inside
+  // setAppId() would see (newAppId, oldMapId, oldToken). Coalesce all three
+  // setters into a single sync on the next runloop tick.
+  private val syncRunnable = Runnable {
+    syncScheduled = false
+    ensureConfigured()
+    syncMap()
+  }
+  private var syncScheduled = false
+  private fun scheduleSync() {
+    if (syncScheduled) return
+    syncScheduled = true
+    post(syncRunnable)
+  }
+
   fun setAppId(value: String?) {
     appId = value
-    tryLoad()
+    scheduleSync()
   }
 
   fun setMapId(value: String?) {
     mapId = value
-    tryLoad()
+    scheduleSync()
   }
 
   fun setAppToken(value: String?) {
     appToken = value
-    tryLoad()
+    scheduleSync()
   }
 
-  private fun tryLoad() {
+  fun setPlacemarkID(value: String?) {
+    placemarkID = value
+    scheduleSync()
+  }
+
+  // React Native's UIManager calls requestLayout() on us when JS-side layout
+  // changes the view's size, but RN does not propagate the layout pass to
+  // children of native views. Re-run measure+layout once on the next frame so
+  // the embedded Fragment view picks up the new size — bounded to a single
+  // pass per request, NOT a polling loop.
+  override fun requestLayout() {
+    super.requestLayout()
+    post(measureAndLayout)
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    val v = fragment?.view ?: return
+    val lp = v.layoutParams ?: LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+    lp.width = LayoutParams.MATCH_PARENT
+    lp.height = LayoutParams.MATCH_PARENT
+    v.layoutParams = lp
+    v.measure(
+      MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY)
+    )
+    v.layout(0, 0, w, h)
+  }
+
+  private fun ensureConfigured() {
+    val t = appToken ?: return
+    MeridianSdkBootstrap.configure(context.applicationContext, t)
+  }
+
+  private fun syncMap() {
     val a = appId
     val m = mapId
-    val t = appToken
-    if (a.isNullOrBlank() || m.isNullOrBlank() || t.isNullOrBlank()) return
-    try {
-      if (!isConfigured) {
-        Meridian.configure(context.applicationContext, t)
-        Meridian.getShared().supportDarkTheme(true)
-        isConfigured = true
-      }
-    } catch (e: Throwable) {
-      Log.w(TAG, "configure once: ${e.message}")
-    }
-    if (fragment != null) return
+    if (a.isNullOrBlank() || m.isNullOrBlank() || appToken.isNullOrBlank()) return
+    ensureConfigured()
+    if (!MeridianSdkBootstrap.isConfigured()) return
+
     if (!isAttachedToWindow) {
       pendingLoad = true
       return
     }
 
-    post { attachFragment(a!!, m!!) }
+    val newKey = EditorKey.forMap(m, EditorKey.forApp(a))
+    val frag = fragment
+    val pid = placemarkID
+
+    if (frag != null) {
+      val mv = frag.mapView
+      val current = mv?.mapKey
+      val sameMap = current != null && current.id == newKey.id && current.parent?.id == a
+      val sameLocation = current?.parent?.id == a
+      val placemarkChanged = pid != lastAppliedPlacemarkID
+
+      if (sameMap && !placemarkChanged) return
+
+      // The Android SDK has no public runtime API for programmatic placemark
+      // selection — only `MapSheetFragment.Builder.setPlacemarkId()` at
+      // construction time. Any time the placemarkID prop changes (set,
+      // changed, or cleared) we rebuild the fragment so the SDK's clean init
+      // path is the one that does the work. Same when the location changes
+      // (mv.setMapKey is scoped to a single location). Only smooth-swap via
+      // setMapKey when nothing about the selection is changing.
+      if (!sameLocation || placemarkChanged) {
+        Log.d(TAG, "rebuilding fragment (location=$sameLocation placemarkChanged=$placemarkChanged)")
+        attachFragment(newKey, pid)
+        lastAppliedPlacemarkID = pid
+      } else {
+        try {
+          mv?.setMapKey(newKey)
+          Log.d(TAG, "mapKey swapped to map=$m app=$a")
+        } catch (e: Throwable) {
+          Log.w(TAG, "setMapKey failed, falling back to fragment replace: ${e.message}")
+          attachFragment(newKey, pid)
+          lastAppliedPlacemarkID = pid
+        }
+      }
+      return
+    }
+
+    attachFragment(newKey, pid)
+    lastAppliedPlacemarkID = pid
   }
 
   private fun fragmentManager(): FragmentManager? {
@@ -90,53 +177,69 @@ class MeridianMapContainer @JvmOverloads constructor(
     return if (activity is FragmentActivity) activity.supportFragmentManager else null
   }
 
-  private fun attachFragment(appId: String, mapId: String) {
-    val fm = fragmentManager() ?: run {
-      return
-    }
-    val appKey = EditorKey.forApp(appId)
-    val mapKey = EditorKey.forMap(mapId, appKey)
-    val frag = MapSheetFragment.Builder().setMapKey(mapKey).build()
+  private fun attachFragment(mapKey: EditorKey, placemarkId: String? = null) {
+    val fm = fragmentManager() ?: return
+    val builder = MapSheetFragment.Builder().setMapKey(mapKey)
+    if (!placemarkId.isNullOrBlank()) builder.setPlacemarkId(placemarkId)
+    val frag = builder.build()
     try {
-      fm.beginTransaction().replace(containerId, frag, "MeridianMapFragment").commitNowAllowingStateLoss()
+      fm.beginTransaction()
+        .replace(containerId, frag, "MeridianMapFragment")
+        .commitNowAllowingStateLoss()
       fragment = frag
       pendingLoad = false
-      scheduleEnsureSized()
+      // Builder.setPlacemarkId() selects and opens the bottom sheet but does
+      // NOT pan/zoom — unlike iOS's `initWithEditorKey:placemarkID:` which
+      // does both. Hook MapView.MapEventListener.onPlacemarksLoadFinish()
+      // which fires once placemark data is available, then pan.
+      //
+      // MapSheetFragment.setMapEventListener is a multiplexing setter (the
+      // fragment stores the external listener separately and dispatches to
+      // it in addition to its own internal handling — verified via javap),
+      // so registering this does NOT break the fragment. We must not call
+      // back into the fragment from inside these callbacks — that was the
+      // cause of the recursion crash in earlier attempts.
+      if (!placemarkId.isNullOrBlank()) {
+        frag.setMapEventListener(makePanOnPlacemarksLoaded(placemarkId))
+      }
     } catch (e: Throwable) {
       Log.e(TAG, "attach failed: ${e.message}")
     }
   }
 
-  private fun scheduleEnsureSized() {
-    Choreographer.getInstance().postFrameCallback {
-      val w = width
-      val h = height
-      val v = fragment?.view
-      if (v != null) {
-        v.layoutParams = v.layoutParams?.apply {
-          width = LayoutParams.MATCH_PARENT
-          height = LayoutParams.MATCH_PARENT
-        } ?: LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        v.measure(
-          View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
-          View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
+  // Pan-to-placemark once the map is fully rendered. Builder.setPlacemarkId
+  // selects + opens the bottom sheet but never pans on Android (unlike iOS's
+  // initWithEditorKey:placemarkID:), and the SDK's own internal pan after
+  // placemarks load can overwrite an early pan from us — so we wait until
+  // onMapRenderFinish (last event in the chain) and use a one-shot flag so
+  // we don't fight user-initiated pans on subsequent renders.
+  private fun makePanOnPlacemarksLoaded(placemarkId: String): MapView.MapEventListener {
+    var panned = false
+    val tryPan = tryPan@{
+      if (panned) return@tryPan
+      val mv = fragment?.mapView ?: return@tryPan
+      val placemark = mv.placemarks.firstOrNull { it.key.id == placemarkId } ?: return@tryPan
+      runCatching {
+        mv.scrollToRect(
+          mv.rectWithCenter(PointF(placemark.x, placemark.y), MapInfo.ZoomLevel.ZOOM_LEVEL_LARGE_STORE),
+          true
         )
-        v.layout(0, 0, w, h)
-        v.requestLayout()
-        Log.d(TAG, "ensureSized frame: fragView=${v.width}x${v.height} cont=${w}x${h}")
-      } else {
-        Log.d(TAG, "ensureSized frame: fragView=null cont=${w}x${h}")
-      }
-      uiHandler.postDelayed({ scheduleEnsureSized() }, 500)
+        panned = true
+        Log.d(TAG, "pan: zoomed to preselected $placemarkId")
+      }.onFailure { Log.w(TAG, "pan to $placemarkId failed: ${it.message}") }
     }
-  }
-
-  fun startRoute(placemarkId: String) {
-    val frag = fragment ?: return
-    runCatching {
-      val target = frag.mapView.placemarks.firstOrNull { it.key.id == placemarkId }
-      if (target != null) frag.startDirections(DirectionsDestination.forPlacemarkKey(target.key))
-    }.onFailure { e -> Log.e(TAG, "startRoute error: ${e.message}") }
+    return object : MapView.MapEventListener {
+      override fun onMapLoadStart() {}
+      override fun onMapLoadFinish() {}
+      override fun onPlacemarksLoadFinish() {}
+      override fun onMapRenderFinish() { tryPan() }
+      override fun onMapLoadFail(t: Throwable?) {
+        Log.w(TAG, "MapEventListener.onMapLoadFail: ${t?.message}")
+      }
+      override fun onMapTransformChange(matrix: Matrix?) {}
+      override fun onLocationUpdated(location: MeridianLocation?) {}
+      override fun onOrientationUpdated(orientation: MeridianOrientation?) {}
+    }
   }
 
   override fun onDetachedFromWindow() {
@@ -145,8 +248,6 @@ class MeridianMapContainer @JvmOverloads constructor(
   }
 
   companion object {
-    @Volatile private var isConfigured: Boolean = false
+    private const val TAG = "MeridianMapContainer"
   }
 }
-
-
