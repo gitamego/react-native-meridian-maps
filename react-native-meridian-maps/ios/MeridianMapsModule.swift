@@ -3,7 +3,7 @@ import Meridian
 import React
 
 @objc(MeridianMapsModule)
-final class MeridianMapsModule: NSObject, MRLocationManagerDelegate {
+final class MeridianMapsModule: NSObject, MRLocationManagerDelegate, RCTInvalidating {
   private static let logTag = "MeridianMapsModule"
 
   // Held for the module lifetime so beacon ranging keeps running until
@@ -13,6 +13,12 @@ final class MeridianMapsModule: NSObject, MRLocationManagerDelegate {
   private var managerAppId: String?
 
   @objc static func requiresMainQueueSetup() -> Bool { false }
+
+  // CoreLocation / MRLocationManager / Meridian.configure() all expect the
+  // main thread. RN dispatches @objc methods on a per-module background queue
+  // by default, so route every method here to main. Cheap (just a runloop
+  // hop), and keeps the method bodies free of explicit DispatchQueue dances.
+  @objc var methodQueue: DispatchQueue { DispatchQueue.main }
 
   @objc func warmupLocation(_ appToken: NSString,
                             appId: NSString,
@@ -49,6 +55,15 @@ final class MeridianMapsModule: NSObject, MRLocationManagerDelegate {
     managerAppId = nil
     NSLog("%@: warmup stopped", Self.logTag)
     resolve(nil)
+  }
+
+  // RCTInvalidating: fires on bridge teardown (reload / shutdown). Without
+  // this the manager keeps ranging across JS reloads in dev and may outlive
+  // the module instance on shutdown.
+  @objc func invalidate() {
+    locationManager?.stopUpdatingLocation()
+    locationManager = nil
+    managerAppId = nil
   }
 
   // MARK: - MRLocationManagerDelegate

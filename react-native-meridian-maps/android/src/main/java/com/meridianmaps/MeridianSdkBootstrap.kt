@@ -71,13 +71,17 @@ object MeridianSdkBootstrap {
     } catch (e: Throwable) {
       Log.w(TAG, "Meridian.configure threw; checking whether SDK is already up", e)
     }
-    return try {
-      Meridian.getShared().supportDarkTheme(true)
-      configured = true
-      true
+    // Probe SDK state; getShared() throws if configure didn't take.
+    val shared = try {
+      Meridian.getShared()
     } catch (e: Throwable) {
       Log.w(TAG, "Meridian.getShared() failed; SDK is not configured", e)
-      false
+      return false
     }
+    configured = true
+    // Apply runtime config. Failure here is non-fatal — SDK is still up.
+    runCatching { shared.supportDarkTheme(true) }
+      .onFailure { Log.w(TAG, "supportDarkTheme failed: ${it.message}") }
+    return true
   }
 }

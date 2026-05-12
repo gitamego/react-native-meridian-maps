@@ -5,13 +5,18 @@ import Meridian
 // path and the JS-warmup module path share the same idempotency guard. The
 // iOS SDK rejects a second `configure()` call, so this state is process-wide.
 enum MeridianSDKBootstrap {
+  private static let lock = NSLock()
   private static var didConfigure = false
 
-  static func isConfigured() -> Bool { didConfigure }
+  static func isConfigured() -> Bool {
+    lock.lock(); defer { lock.unlock() }
+    return didConfigure
+  }
 
   @discardableResult
   static func configure(token: String) -> Bool {
     guard !token.isEmpty else { return false }
+    lock.lock(); defer { lock.unlock() }
     if didConfigure {
       if Meridian.sharedConfig()?.applicationToken != token {
         Meridian.sharedConfig()?.applicationToken = token

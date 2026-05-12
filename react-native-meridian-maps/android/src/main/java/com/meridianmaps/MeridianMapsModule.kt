@@ -47,6 +47,10 @@ class MeridianMapsModule(reactContext: ReactApplicationContext) : ReactContextBa
     mainHandler.post {
       try {
         val ctx = reactApplicationContext
+        if (appToken.isBlank() || appId.isBlank()) {
+          promise.reject("MERIDIAN_WARMUP_BAD_ARGS", "appToken and appId are required")
+          return@post
+        }
         if (!MeridianSdkBootstrap.configure(ctx, appToken)) {
           promise.reject("MERIDIAN_CONFIGURE_FAILED", "Meridian.configure failed; verify appToken")
           return@post
@@ -83,6 +87,17 @@ class MeridianMapsModule(reactContext: ReactApplicationContext) : ReactContextBa
         promise.reject("MERIDIAN_STOP_WARMUP_FAILED", e.message ?: "stopWarmup failed", e)
       }
     }
+  }
+
+  // Fires on bridge teardown — Fast Refresh, app reload, or final shutdown.
+  // Without this the BLE scan keeps running across JS reloads.
+  override fun invalidate() {
+    mainHandler.post {
+      locationManager?.stopListeningForLocation()
+      locationManager = null
+      managerAppId = null
+    }
+    super.invalidate()
   }
 
   companion object {
