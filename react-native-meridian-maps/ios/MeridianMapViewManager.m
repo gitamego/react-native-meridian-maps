@@ -9,11 +9,6 @@
 RCT_EXPORT_VIEW_PROPERTY(appId, NSString)
 RCT_EXPORT_VIEW_PROPERTY(mapId, NSString)
 RCT_EXPORT_VIEW_PROPERTY(appToken, NSString)
-
-// Commands (first arg must be reactTag)
-RCT_EXTERN_METHOD(startRoute:(nonnull NSNumber *)reactTag
-                  placemarkID:(NSString *)placemarkID)
+RCT_EXPORT_VIEW_PROPERTY(placemarkID, NSString)
 
 @end
-
-

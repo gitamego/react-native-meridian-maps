@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Override of Meridian SDK's `mr_map_controls_bg_white`. The SDK ships this as
+  an `oval` with a fixed 58dp size — used as the collapsed background for the
+  level picker. When the picker animates from collapsed (58dp) to its expanded
+  layout, the oval stretches to fill the growing container, producing a
+  bubble-shape artifact mid-animation (with the picker icon left at its old
+  position, visibly outside the bubble).
+
+  Using a rectangle with 29dp corner radius (≈ half the collapsed 58dp size)
+  preserves the circular look at 58×58 (Android clamps the radius to half the
+  view's smallest dimension) and degrades cleanly into a pill shape as the
+  container grows, so the animation is smooth instead of morph-y.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/mr_white"/>
+    <corners android:radius="29dp"/>
+    <stroke android:width="0.5dp" android:color="@color/mr_mapcontrol_border"/>
+</shape>
